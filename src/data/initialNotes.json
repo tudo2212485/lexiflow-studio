@@ -1,0 +1,47 @@
+[
+  {
+    "id": "note-1",
+    "term": "S + am/is/are + Tính từ / Danh từ",
+    "phonetic": "Công thức gốc Câu Tỉnh (Không có động từ chỉ hành động)",
+    "meaning": "Khi câu KHÔNG có hành động (chỉ tả tính chất, nghề nghiệp, vị trí), bắt buộc dùng To Be (am/is/are). Tuyệt đối không ghép am/is/are với động từ nguyên mẫu!",
+    "example": "I am a software developer. / The system is very stable.",
+    "tag": "Mẹo ngữ pháp",
+    "createdAt": "Hôm nay"
+  },
+  {
+    "id": "note-2",
+    "term": "Schedule",
+    "phonetic": "sche-dule • /ˈskedʒ.uːl/ (n, v)",
+    "meaning": "Lịch trình, lên lịch hẹn. 💡 Mẹo nhớ: Nghe như 'Sẽ-điêu' -> Lên lịch trình kỹ kẻo bị điêu!",
+    "example": "We are ahead of schedule. (Chúng ta đang vượt tiến độ).",
+    "tag": "Từ mới",
+    "createdAt": "Hôm nay"
+  },
+  {
+    "id": "note-3",
+    "term": "Look forward to + V-ing",
+    "phonetic": "Cấu trúc kết thúc Email & Giao tiếp lịch sự",
+    "meaning": "Mong đợi điều gì. ⚠️ Lưu ý: Chữ 'to' ở đây là giới từ nên phía sau BẮT BUỘC cộng V-ing (không dùng V nguyên mẫu).",
+    "example": "I look forward to hearing from you soon.",
+    "tag": "Hay nhầm",
+    "createdAt": "Hôm nay"
+  },
+  {
+    "id": "note-4",
+    "term": "Make a decision = Decide",
+    "phonetic": "Cụm từ tự nhiên (Collocation)",
+    "meaning": "Đưa ra quyết định. Người bản xứ rất thích dùng cụm 'make a decision' thay vì chỉ nói 'decide'.",
+    "example": "We need to make a final decision before Friday.",
+    "tag": "Cấu trúc câu",
+    "createdAt": "Hôm nay"
+  },
+  {
+    "id": "note-5",
+    "term": "Dependency Injection (DI)",
+    "phonetic": "de-pen-den-cy in-jec-tion • /dɪˈpen.dən.si ɪnˈdʒek.ʃən/",
+    "meaning": "Kỹ thuật tiêm phụ thuộc trong Clean Architecture & .NET Core giúp tách rời (loose coupling) các tầng với nhau.",
+    "example": "We register services using dependency injection in Program.cs.",
+    "tag": "Từ mới",
+    "createdAt": "Hôm nay"
+  }
+]

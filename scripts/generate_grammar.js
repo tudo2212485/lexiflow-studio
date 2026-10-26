@@ -1,0 +1,1267 @@
+import fs from 'fs';
+import path from 'path';
+
+const lessons = [
+  {
+    id: "g-1",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 1 / 22",
+    title: "Bản Chất Câu Tiếng Anh: Khi nào dùng To Be? Khi nào dùng Động Từ Thường?",
+    duration: "15 phút",
+    progress: 100,
+    completed: true,
+    coreMindset: "90% người mất gốc bị lỗi 'I am agree' hoặc 'She very busy'. Hãy nhớ quy tắc vàng: MỖI CÂU ĐƠN BẮT BUỘC PHẢI CÓ 1 ĐỘNG TỪ CHÍNH! Nếu câu đã có động từ hành động (agree, work, like, code), KHÔNG dùng To Be. Nếu câu không có hành động (chỉ tả tính chất, trạng thái, nghề nghiệp), BẮT BUỘC mượn To Be.",
+    formulaBox: "TH1 (Có hành động): S + V(nguyên/s/es) + (O)  |  TH2 (Không có hành động): S + am/is/are + Tính từ / Danh từ",
+    quickTip3s: "Thấy động từ nguyên mẫu như agree, go, finish -> Tuyệt đối không nhét 'am/is/are' đứng trước!",
+    comparisonTable: [
+      {
+        wrong: "❌ I am agree with your idea.",
+        right: "✅ I agree with your idea.",
+        why: "'Agree' (đồng ý) bản thân đã là động từ thường, không được thêm 'am'."
+      },
+      {
+        wrong: "❌ The server very fast today.",
+        right: "✅ The server is very fast today.",
+        why: "'Fast' (nhanh) là tính từ, câu thiếu động từ nên bắt buộc phải có To Be 'is'."
+      },
+      {
+        wrong: "❌ Do you free this afternoon?",
+        right: "✅ Are you free this afternoon?",
+        why: "'Free' (rảnh) là tính từ, câu hỏi phải dùng To Be 'Are you...', không dùng trợ động từ 'Do'."
+      }
+    ],
+    questions: [
+      {
+        q: "Our team _______ very busy preparing the final deployment this week.",
+        options: ["is", "does", "work", "be"],
+        answer: 0,
+        explanation: "'Busy' là tính từ -> câu cần động từ To Be 'is' làm vị ngữ chính cho chủ ngữ số ít 'Our team'."
+      },
+      {
+        q: "I completely _______ that we need to refactor the payment module.",
+        options: ["am agree", "agree", "is agree", "agreeing"],
+        answer: 1,
+        explanation: "'Agree' là động từ thường, đi thẳng với chủ ngữ 'I', không có To Be đi kèm."
+      },
+      {
+        q: "_______ the database backup process ready to run?",
+        options: ["Does", "Is", "Do", "Has"],
+        answer: 1,
+        explanation: "'Ready' (sẵn sàng) là tính từ -> câu hỏi đảo To Be 'Is' lên trước chủ ngữ."
+      },
+      {
+        q: "They _______ in the meeting room on the third floor right now.",
+        options: ["are", "do", "staying", "is"],
+        answer: 0,
+        explanation: "Chỉ vị trí nơi chốn 'in the meeting room' với chủ ngữ 'They' cần To Be 'are'."
+      },
+      {
+        q: "Why _______ the API response so slow this morning?",
+        options: ["does", "is", "has", "do"],
+        answer: 1,
+        explanation: "'Slow' là tính từ -> câu hỏi cần mượn To Be 'is' cho danh từ số ít 'the API response'."
+      }
+    ]
+  },
+  {
+    id: "g-2",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 2 / 22",
+    title: "Đại Từ Nhân Xưng, Tân Ngữ & Tính Từ Sở Hữu (Tránh Nhầm Lẫn Cơ Bản)",
+    duration: "14 phút",
+    progress: 80,
+    completed: true,
+    coreMindset: "Người học tiếng Anh hay nói 'Please send I the file' hoặc 'This is him computer'. Tiếng Anh phân định rất rạch ròi: Làm chủ ngữ đứng trước động từ (I, You, We, They, He, She, It), Làm tân ngữ đứng sau động từ/giới từ (Me, You, Us, Them, Him, Her, It), và Đứng trước danh từ để chỉ sở hữu (My, Your, Our, Their, His, Her, Its).",
+    formulaBox: "Chủ ngữ (S) + Động từ (V) + Tân ngữ (O)  |  Tính từ sở hữu (My/Your/His/Her/Their/Our/Its) + Danh từ",
+    quickTip3s: "Đứng sau động từ hoặc giới từ (to, for, with, about) -> Bắt buộc dùng dạng Tân ngữ (me, him, her, us, them)!",
+    comparisonTable: [
+      {
+        wrong: "❌ Please send I the updated report.",
+        right: "✅ Please send me the updated report.",
+        why: "'Send' là động từ, từ đứng sau nhận hành động phải là tân ngữ 'me'."
+      },
+      {
+        wrong: "❌ He forgot he password yesterday.",
+        right: "✅ He forgot his password yesterday.",
+        why: "Trước danh từ 'password' cần tính từ sở hữu 'his' (của anh ấy)."
+      }
+    ],
+    questions: [
+      {
+        q: "The project manager asked _______ to review the Pull Request before 5 PM.",
+        options: ["we", "us", "our", "ours"],
+        answer: 1,
+        explanation: "Đứng sau động từ 'asked' là vị trí Tân ngữ, chọn 'us'."
+      },
+      {
+        q: "Could you please forward the contract to _______ email address?",
+        options: ["me", "my", "I", "mine"],
+        answer: 1,
+        explanation: "Đứng trước cụm danh từ 'email address' cần tính từ sở hữu 'my' (của tôi)."
+      },
+      {
+        q: "The director met with Mr. Nam and _______ to discuss the budget.",
+        options: ["he", "him", "his", "himself"],
+        answer: 1,
+        explanation: "Đứng sau giới từ 'with' cần tân ngữ 'him'."
+      },
+      {
+        q: "All employees must display _______ identification badges at all times.",
+        options: ["their", "them", "they", "theirs"],
+        answer: 0,
+        explanation: "Đứng trước danh từ 'identification badges' cần tính từ sở hữu 'their'."
+      },
+      {
+        q: "The system automatically restores _______ default configuration if an error occurs.",
+        options: ["it", "its", "it's", "itself"],
+        answer: 1,
+        explanation: "Cần tính từ sở hữu 'its' (của nó) bổ nghĩa cho 'default configuration'. Không nhầm với it's = it is."
+      }
+    ]
+  },
+  {
+    id: "g-3",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 3 / 22",
+    title: "Thì Hiện Tại Đơn (Present Simple): Diễn Tả Thói Quen, Sự Thật & Quy Tắc Thêm s/es",
+    duration: "16 phút",
+    progress: 75,
+    completed: true,
+    coreMindset: "Hiện tại đơn dùng để nói về những việc lặp đi lặp lại thành thói quen (routine), thời gian biểu hoặc sự thật hiển nhiên. Lưu ý lớn nhất: Với ngôi thứ 3 số ít (He, She, It, Danh từ số ít), động từ BẮT BUỘC phải thêm s/es!",
+    formulaBox: "Khẳng định: S + V(nguyên) / V(s/es)  |  Phủ định: S + don't / doesn't + V(nguyên)  |  Nghi vấn: Do / Does + S + V(nguyên)?",
+    quickTip3s: "Dấu hiệu nhận biết: always, usually, often, sometimes, every day, once a week, normally.",
+    comparisonTable: [
+      {
+        wrong: "❌ He check emails every morning.",
+        right: "✅ He checks emails every morning.",
+        why: "Chủ ngữ 'He' là ngôi thứ 3 số ít, động từ 'check' bắt buộc thêm 's' -> 'checks'."
+      },
+      {
+        wrong: "❌ She doesn't likes this software.",
+        right: "✅ She doesn't like this software.",
+        why: "Sau trợ động từ 'doesn't', động từ chính trở về nguyên mẫu không chia."
+      }
+    ],
+    questions: [
+      {
+        q: "Our lead developer usually _______ the unit tests before pushing code.",
+        options: ["run", "runs", "is running", "ran"],
+        answer: 1,
+        explanation: "'Usually' chỉ thói quen; chủ ngữ 'Our lead developer' là số ít nên động từ thêm 's': 'runs'."
+      },
+      {
+        q: "They _______ conduct performance reviews every quarter.",
+        options: ["regularly", "are regularly", "regular", "regularity"],
+        answer: 0,
+        explanation: "Cần trạng từ tần suất 'regularly' đứng trước động từ thường 'conduct'."
+      },
+      {
+        q: "The marketing director _______ not agree with the current timeline.",
+        options: ["do", "does", "is", "have"],
+        answer: 1,
+        explanation: "Chủ ngữ số ít 'The marketing director' đi với trợ động từ phủ định 'does not'."
+      },
+      {
+        q: "How often _______ your team hold daily standup meetings?",
+        options: ["is", "do", "does", "are"],
+        answer: 2,
+        explanation: "Chủ ngữ 'your team' (số ít) trong câu hỏi thì Hiện tại đơn mượn trợ động từ 'does'."
+      },
+      {
+        q: "The shuttle bus _______ at Terminal 2 every thirty minutes.",
+        options: ["arrive", "arrives", "arriving", "is arrive"],
+        answer: 1,
+        explanation: "Lịch trình cố định, chủ ngữ số ít 'The shuttle bus' -> động từ thêm s: 'arrives'."
+      }
+    ]
+  },
+  {
+    id: "g-4",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 4 / 22",
+    title: "Thì Hiện Tại Tiếp Diễn (Present Continuous): Hành Động Đang Xảy Ra & Kế Hoạch Đã Lên Lịch",
+    duration: "14 phút",
+    progress: 60,
+    completed: false,
+    coreMindset: "Dùng để diễn tả hành động ĐANG DIỄN RA ngay lúc nói (now, at the moment, currently) hoặc một xu hướng tạm thời. Công thức luôn có đủ cặp đôi: To Be (am/is/are) + V-ing. Thiếu 1 trong 2 là sai ngữ pháp!",
+    formulaBox: "S + am/is/are + V-ing + (O)  |  Dấu hiệu: now, right now, currently, at present, look!, listen!",
+    quickTip3s: "Không dùng thì tiếp diễn với các động từ chỉ nhận thức/cảm xúc: know, understand, like, love, need, want.",
+    comparisonTable: [
+      {
+        wrong: "❌ Right now, I write the API documentation.",
+        right: "✅ Right now, I am writing the API documentation.",
+        why: "'Right now' chỉ hành động đang diễn ra -> cần thì Hiện tại tiếp diễn 'am writing'."
+      },
+      {
+        wrong: "❌ I am understanding your problem now.",
+        right: "✅ I understand your problem now.",
+        why: "'Understand' là động từ chỉ nhận thức, không chia ở thì tiếp diễn."
+      }
+    ],
+    questions: [
+      {
+        q: "Our engineering department is currently _______ a new authentication service.",
+        options: ["develop", "developed", "developing", "develops"],
+        answer: 2,
+        explanation: "Sau 'is currently' cần dạng V-ing 'developing' để tạo thì Hiện tại tiếp diễn."
+      },
+      {
+        q: "Please keep quiet; the director _______ an international conference call.",
+        options: ["is having", "has", "had", "having"],
+        answer: 0,
+        explanation: "Hành động đang diễn ra ngay lúc nói, chủ ngữ số ít -> 'is having'."
+      },
+      {
+        q: "Why _______ the QA engineers testing the staging environment right now?",
+        options: ["do", "are", "have", "is"],
+        answer: 1,
+        explanation: "Chủ ngữ số nhiều 'the QA engineers' đi với To Be 'are' trong thì tiếp diễn."
+      },
+      {
+        q: "At present, the company _______ expanding into Southeast Asian markets.",
+        options: ["is", "are", "does", "has"],
+        answer: 0,
+        explanation: "Chủ ngữ 'the company' (số ít) đi với 'is' + V-ing ('is expanding')."
+      },
+      {
+        q: "I _______ for the client's approval before proceeding with the deployment.",
+        options: ["am waiting", "wait", "waiting", "am wait"],
+        answer: 0,
+        explanation: "Diễn tả hành động tạm thời đang chờ đợi -> 'am waiting'."
+      }
+    ]
+  },
+  {
+    id: "g-5",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 5 / 22",
+    title: "Thì Quá Khứ Đơn (Past Simple): Khép Lại Quá Khứ, V-ed & Động Từ Bất Quy Tắc Cốt Lõi",
+    duration: "18 phút",
+    progress: 50,
+    completed: false,
+    coreMindset: "Dùng cho sự việc ĐÃ HOÀN TOÀN KẾT THÚC trong quá khứ, có thời gian xác định rõ ràng. Tuyệt đối không để động từ nguyên mẫu khi thấy: yesterday, last week, 2 days ago, in 2024. Hãy nhớ các động từ bất quy tắc sống còn: see->saw, go->went, have->had, make->made, send->sent, buy->bought.",
+    formulaBox: "Khẳng định: S + V2/ed  |  Phủ định: S + didn't + V(nguyên)  |  Nghi vấn: Did + S + V(nguyên)?",
+    quickTip3s: "Cứ thấy 'did' hoặc 'didn't' trong câu thì động từ đi sau BẮT BUỘC trở về nguyên mẫu không chia!",
+    comparisonTable: [
+      {
+        wrong: "❌ Yesterday, we deploy the bug fix to production.",
+        right: "✅ Yesterday, we deployed the bug fix to production.",
+        why: "'Yesterday' là quá khứ đã kết thúc -> 'deploy' phải thêm -ed -> 'deployed'."
+      },
+      {
+        wrong: "❌ I didn't received your confirmation email.",
+        right: "✅ I didn't receive your confirmation email.",
+        why: "Sau trợ động từ 'didn't', động từ phải ở dạng nguyên mẫu 'receive'."
+      }
+    ],
+    questions: [
+      {
+        q: "Last Friday, our team _______ the contract with the Singaporean partner.",
+        options: ["sign", "signed", "signing", "signs"],
+        answer: 1,
+        explanation: "'Last Friday' là mốc thời gian quá khứ -> chọn động từ V-ed: 'signed'."
+      },
+      {
+        q: "Mr. Minh _______ to Hanoi yesterday to attend the technology seminar.",
+        options: ["go", "gone", "went", "goes"],
+        answer: 2,
+        explanation: "Dạng quá khứ bất quy tắc của 'go' là 'went'."
+      },
+      {
+        q: "We didn't _______ the urgent notification until this morning.",
+        options: ["see", "saw", "seen", "seeing"],
+        answer: 0,
+        explanation: "Sau trợ động từ 'didn't', động từ giữ nguyên mẫu 'see'."
+      },
+      {
+        q: "Two days ago, the database server _______ down due to a power outage.",
+        options: ["shut", "shuts", "shutted", "shutting"],
+        answer: 0,
+        explanation: "Động từ 'shut' bất quy tắc cả 3 cột đều là 'shut - shut - shut'."
+      },
+      {
+        q: "Did you _______ the client regarding their feedback on the UI mockups?",
+        options: ["contact", "contacted", "contacting", "contacts"],
+        answer: 0,
+        explanation: "Câu hỏi quá khứ đảo 'Did' lên đầu -> động từ chính 'contact' ở dạng nguyên mẫu."
+      }
+    ]
+  },
+  {
+    id: "g-6",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 6 / 22",
+    title: "Thì Tương Lai: Will (Quyết Định Tức Thì) vs Be Going To (Kế Hoạch Dự Định Trước)",
+    duration: "15 phút",
+    progress: 40,
+    completed: false,
+    coreMindset: "Đều nói về tương lai nhưng sắc thái rất khác: 'Will' dùng khi vừa nảy ra quyết định ngay tại thời điểm nói hoặc đưa ra lời hứa / dự đoán không có căn cứ. 'Be going to' dùng khi ĐÃ CÓ KẾ HOẠCH hoặc dự định từ trước, hoặc có bằng chứng cụ thể trước mắt.",
+    formulaBox: "Will + V(nguyên)  |  am/is/are + going to + V(nguyên)",
+    quickTip3s: "Khi thấy quyết định tức thì ('I will help you!') dùng Will. Khi thấy lịch trình đã sắp đặt ('I am going to fly to Da Nang tomorrow') dùng Be Going To.",
+    comparisonTable: [
+      {
+        wrong: "❌ The phone is ringing. I am going to answer it.",
+        right: "✅ The phone is ringing. I will answer it.",
+        why: "Quyết định nghe điện thoại nảy ra tức thì khi chuông reo -> dùng 'will'."
+      },
+      {
+        wrong: "❌ Look at those black clouds! It will rain.",
+        right: "✅ Look at those black clouds! It is going to rain.",
+        why: "Có bằng chứng rõ ràng trước mắt (mây đen) -> dùng 'is going to rain'."
+      }
+    ],
+    questions: [
+      {
+        q: "Don't worry about the presentation slides; I _______ prepare them for you.",
+        options: ["will", "am going", "would", "going to"],
+        answer: 0,
+        explanation: "Lời đề nghị / hứa giúp đỡ nảy sinh tức thời -> dùng 'will'."
+      },
+      {
+        q: "Our company _______ launch the new mobile application next month; everything is ready.",
+        options: ["is going to", "will to", "shall to", "goes to"],
+        answer: 0,
+        explanation: "Kế hoạch đã chuẩn bị xong xuôi từ trước ('everything is ready') -> dùng 'is going to'."
+      },
+      {
+        q: "I believe the new feature _______ increase our user retention significantly.",
+        options: ["will", "is going", "has", "does"],
+        answer: 0,
+        explanation: "Dự đoán dựa trên quan điểm cá nhân ('I believe') -> dùng 'will'."
+      },
+      {
+        q: "Are you _______ attend the annual software developers conference?",
+        options: ["going to", "will", "go", "plan"],
+        answer: 0,
+        explanation: "Cấu trúc hỏi dự định: 'Are you going to + V?'"
+      },
+      {
+        q: "The printer is out of paper. I _______ get some from the supply closet.",
+        options: ["will", "am going to", "was", "have"],
+        answer: 0,
+        explanation: "Quyết định tức thì xử lý tình huống hết giấy -> dùng 'will'."
+      }
+    ]
+  },
+  {
+    id: "g-7",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 7 / 22",
+    title: "Danh Từ Đếm Được, Không Đếm Được & Lượng Từ (Many, Much, Few, Little)",
+    duration: "16 phút",
+    progress: 35,
+    completed: false,
+    coreMindset: "Các từ vựng như Information, Equipment, Advice, Furniture, Software KHÔNG BAO GIỜ thêm 's' trong tiếng Anh (vì là danh từ không đếm được)! Phân biệt cặp lượng từ: Many / Few đi với Danh từ đếm được số nhiều. Much / Little đi với Danh từ không đếm được.",
+    formulaBox: "Đếm được: Many / A few / Few + Ns  |  Không đếm được: Much / A little / Little + N(không đếm)",
+    quickTip3s: "'A few' (một vài) mang nghĩa tích cực đủ dùng. 'Few' (rất ít, hầu như không có) mang nghĩa tiêu cực thiếu thốn. Tương tự với 'a little' vs 'little'.",
+    comparisonTable: [
+      {
+        wrong: "❌ Can you give me some advices and informations?",
+        right: "✅ Can you give me some advice and information?",
+        why: "'Advice' và 'information' là danh từ không đếm được, tuyệt đối không thêm 's'."
+      },
+      {
+        wrong: "❌ We don't have many time to finish the testing.",
+        right: "✅ We don't have much time to finish the testing.",
+        why: "'Time' (thời gian) không đếm được -> dùng 'much time', không dùng 'many'."
+      }
+    ],
+    questions: [
+      {
+        q: "For more _______ regarding the updated policy, please visit our internal portal.",
+        options: ["informations", "information", "informative", "inform"],
+        answer: 1,
+        explanation: "'Information' là danh từ không đếm được, không có dạng số nhiều thêm 's'."
+      },
+      {
+        q: "There are only _______ spots left for tomorrow's security training session.",
+        options: ["a few", "a little", "much", "any"],
+        answer: 0,
+        explanation: "'Spots' là danh từ đếm được số nhiều -> dùng 'a few'."
+      },
+      {
+        q: "How _______ budget do we have left for purchasing hardware equipment?",
+        options: ["many", "much", "few", "any"],
+        answer: 1,
+        explanation: "'Budget' (ngân sách) tính bằng lượng tiền không đếm được -> dùng 'How much'."
+      },
+      {
+        q: "All office _______ will be upgraded to the latest ergonomic chairs next month.",
+        options: ["furnitures", "furniture", "furnishing", "furnitures'"],
+        answer: 1,
+        explanation: "'Furniture' (nội thất) là danh từ không đếm được, không thêm 's'."
+      },
+      {
+        q: "We encountered _______ bugs during the test run, so the deployment was delayed.",
+        options: ["too many", "too much", "a little", "much"],
+        answer: 0,
+        explanation: "'Bugs' (lỗi phần mềm) là danh từ đếm được số nhiều -> dùng 'too many'."
+      }
+    ]
+  },
+  {
+    id: "g-8",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 8 / 22",
+    title: "Tính Từ & Trạng Từ Thể Cách: Vị Trí Bổ Nghĩa & Cạm Bẫy Hard, Fast, Late",
+    duration: "16 phút",
+    progress: 30,
+    completed: false,
+    coreMindset: "Quy tắc cốt tử: TÍNH TỪ đứng trước Danh từ hoặc đứng sau To Be / động từ liên kết (seem, feel, look) để mô tả tính chất. TRẠNG TỪ (thường có đuôi -ly) dùng để bổ nghĩa cho ĐỘNG TỪ THƯỜNG (làm gì như thế nào), TÍNH TỪ, hoặc cả câu.",
+    formulaBox: "To Be + TÍNH TỪ  |  TÍNH TỪ + DANH TỪ  |  ĐỘNG TỪ THƯỜNG + TRẠNG TỪ (-ly)",
+    quickTip3s: "Bẫy từ ngoại lệ: Fast (adj/adv), Hard (chăm chỉ / khó), Late (muộn). Lưu ý: 'Hardly' có nghĩa là 'hầu như không', KHÔNG PHẢI là 'chăm chỉ'!",
+    comparisonTable: [
+      {
+        wrong: "❌ He speaks English very good.",
+        right: "✅ He speaks English very well.",
+        why: "Bổ nghĩa cho động từ thường 'speaks' phải dùng trạng từ 'well' (không dùng tính từ 'good')."
+      },
+      {
+        wrong: "❌ Please check the contract careful.",
+        right: "✅ Please check the contract carefully.",
+        why: "Bổ nghĩa cho động từ 'check' cần trạng từ đuôi -ly 'carefully'."
+      }
+    ],
+    questions: [
+      {
+        q: "The technician resolved the server issue _______ before users noticed.",
+        options: ["quick", "quickly", "quickness", "quicker"],
+        answer: 1,
+        explanation: "Bổ nghĩa cho động từ thường 'resolved' cần trạng từ đuôi -ly 'quickly'."
+      },
+      {
+        q: "The new user interface appears extremely _______ and intuitive.",
+        options: ["simple", "simply", "simplicity", "simplify"],
+        answer: 0,
+        explanation: "Sau linking verb 'appears' (trông có vẻ) cần tính từ 'simple'."
+      },
+      {
+        q: "She worked very _______ to ensure the project met its deadline.",
+        options: ["hardly", "hard", "hardness", "harderly"],
+        answer: 1,
+        explanation: "'Work hard' là cụm cố định (làm việc chăm chỉ). 'Hardly' có nghĩa là 'hầu như không' (sai nghĩa)."
+      },
+      {
+        q: "The response time of the microservice is remarkably _______.",
+        options: ["fast", "fastly", "fasterly", "fastness"],
+        answer: 0,
+        explanation: "'Fast' vừa là tính từ vừa là trạng từ, tiếng Anh KHÔNG có từ 'fastly'."
+      },
+      {
+        q: "All team members must communicate _______ during critical production releases.",
+        options: ["clear", "clearly", "clarity", "clearness"],
+        answer: 1,
+        explanation: "Bổ nghĩa cho động từ 'communicate' cần trạng từ 'clearly'."
+      }
+    ]
+  },
+  {
+    id: "g-9",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 9 / 22",
+    title: "Cấp So Sánh: So Sánh Hơn (-er / more) & So Sánh Nhất (-est / the most)",
+    duration: "15 phút",
+    progress: 25,
+    completed: false,
+    coreMindset: "So sánh hơn dùng khi so sánh giữa 2 đối tượng (có chữ 'than'). Tính từ ngắn 1 âm tiết thêm đuôi '-er' (faster, cheaper). Tính từ dài từ 2 âm tiết trở lên dùng 'more + adj' (more expensive, more efficient). Tương tự với so sánh nhất: 'the -est' vs 'the most + adj'.",
+    formulaBox: "Ngắn: adj-er + than  |  Dài: more + adj + than  |  Nhất: the + adj-est / the most + adj",
+    quickTip3s: "Bất quy tắc cần thuộc: Good -> Better -> The best; Bad -> Worse -> The worst; Far -> Farther/Further -> The furthest.",
+    comparisonTable: [
+      {
+        wrong: "❌ This solution is more faster than the previous one.",
+        right: "✅ This solution is faster than the previous one.",
+        why: "'Fast' là tính từ ngắn, đã có '-er' thì tuyệt đối không chèn thêm 'more'."
+      },
+      {
+        wrong: "❌ Today is the most bad day of my week.",
+        right: "✅ Today is the worst day of my week.",
+        why: "So sánh nhất của 'bad' là 'the worst'."
+      }
+    ],
+    questions: [
+      {
+        q: "The clean architecture pattern makes our codebase much _______ to maintain.",
+        options: ["easier", "more easy", "easiest", "more easier"],
+        answer: 0,
+        explanation: "'Easy' kết thúc bằng 'y' coi như tính từ ngắn -> đổi y thành i rồi thêm er: 'easier'."
+      },
+      {
+        q: "PostgreSQL is _______ reliable than our legacy database system.",
+        options: ["more", "most", "as", "much"],
+        answer: 0,
+        explanation: "Có 'than' ở phía sau và 'reliable' là tính từ dài 4 âm tiết -> chọn 'more'."
+      },
+      {
+        q: "This is _______ comprehensive documentation we have ever produced.",
+        options: ["the most", "most", "more", "the more"],
+        answer: 0,
+        explanation: "So sánh nhất với tính từ dài 'comprehensive' -> 'the most comprehensive'."
+      },
+      {
+        q: "Our query latency is now _______ than it was before the index optimization.",
+        options: ["low", "lower", "lowest", "more low"],
+        answer: 1,
+        explanation: "Tính từ ngắn 'low' so sánh hơn có 'than' -> 'lower'."
+      },
+      {
+        q: "Customer satisfaction ratings this quarter are _______ than last quarter's.",
+        options: ["good", "better", "best", "more good"],
+        answer: 1,
+        explanation: "So sánh hơn của 'good' là 'better'."
+      }
+    ]
+  },
+  {
+    id: "g-10",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 10 / 22",
+    title: "Giới Từ Thời Gian & Nơi Chốn: In - On - At - By - For Chuẩn Xác",
+    duration: "17 phút",
+    progress: 20,
+    completed: false,
+    coreMindset: "Hãy tưởng tượng tam giác kim tự tháp: IN (rộng nhất: thế kỷ, năm, tháng, mùa, quốc gia, thành phố) ➔ ON (hẹp vừa: ngày trong tuần, ngày tháng cụ thể, mặt phẳng đường phố) ➔ AT (cụ thể nhất: giờ chính xác, địa chỉ nhà cụ thể, thời điểm xác định như at noon, at midnight).",
+    formulaBox: "IN + Năm / Tháng / Mùa / Nước  |  ON + Ngày / Thứ / Bề mặt  |  AT + Giờ / Địa chỉ cụ thể",
+    quickTip3s: "'By Friday' = Trước hoặc chậm nhất là thứ Sáu (deadline). 'For 2 weeks' = Trong khoảng thời gian 2 tuần.",
+    comparisonTable: [
+      {
+        wrong: "❌ The meeting will start in 9:00 AM on Monday.",
+        right: "✅ The meeting will start at 9:00 AM on Monday.",
+        why: "Giờ giấc chính xác dùng 'at 9:00 AM', thứ trong tuần dùng 'on Monday'."
+      },
+      {
+        wrong: "❌ I was born at 1998 in July 15th.",
+        right: "✅ I was born in 1998 on July 15th.",
+        why: "Năm dùng 'in 1998', ngày tháng cụ thể có ngày 15 dùng 'on July 15th'."
+      }
+    ],
+    questions: [
+      {
+        q: "The keynote speaker will arrive at the auditorium _______ 2:30 PM.",
+        options: ["in", "on", "at", "by"],
+        answer: 2,
+        explanation: "Thời gian giờ giấc cụ thể luôn đi với giới từ 'at'."
+      },
+      {
+        q: "All quarterly tax reports must be submitted _______ the end of this month.",
+        options: ["by", "at", "on", "in"],
+        answer: 0,
+        explanation: "'By the end of this month' mang nghĩa trước hoặc chậm nhất cuối tháng này (hạn chót)."
+      },
+      {
+        q: "Our branch office will hold its grand opening ceremony _______ October 24th.",
+        options: ["in", "on", "at", "for"],
+        answer: 1,
+        explanation: "Có ngày cụ thể (ngày 24 tháng 10) bắt buộc dùng giới từ 'on'."
+      },
+      {
+        q: "The company headquarters is located _______ Tokyo, Japan.",
+        options: ["at", "on", "in", "by"],
+        answer: 2,
+        explanation: "Thành phố hoặc quốc gia rộng lớn đi với giới từ 'in'."
+      },
+      {
+        q: "He has been working as a .NET software engineer _______ over five years.",
+        options: ["for", "since", "at", "in"],
+        answer: 0,
+        explanation: "Khoảng thời gian (over five years) đi với giới từ 'for'."
+      }
+    ]
+  },
+  {
+    id: "g-11",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 11 / 22",
+    title: "Động Từ Khuyết Thiếu (Modal Verbs): Can, Could, Should, Must, Have To",
+    duration: "15 phút",
+    progress: 20,
+    completed: false,
+    coreMindset: "Động từ khuyết thiếu giúp câu nói trở nên lịch sự và diễn đạt sắc thái ý nghĩa phong phú. Quy tắc bất di bất dịch: SAU MODAL VERB LUÔN LÀ ĐỘNG TỪ NGUYÊN MẪU KHÔNG TO (bare infinitive). Không chia s/es/ed dù chủ ngữ là ngôi thứ 3!",
+    formulaBox: "S + can / could / should / must / may + V(nguyên mẫu)",
+    quickTip3s: "Could / Would / May mang tính chất lịch sự, trang trọng hơn Can / Will rất nhiều trong giao tiếp công sở.",
+    comparisonTable: [
+      {
+        wrong: "❌ He should to backup the database.",
+        right: "✅ He should backup the database.",
+        why: "Sau động từ khuyết thiếu 'should', động từ 'backup' phải ở dạng nguyên mẫu không có 'to'."
+      },
+      {
+        wrong: "❌ She must goes to the meeting.",
+        right: "✅ She must go to the meeting.",
+        why: "Sau 'must' không chia 'goes', bắt buộc dùng nguyên mẫu 'go'."
+      }
+    ],
+    questions: [
+      {
+        q: "All employees _______ wear safety goggles when entering the server cooling room.",
+        options: ["must", "have", "ought", "need to"],
+        answer: 0,
+        explanation: "Chỉ quy định bắt buộc nghiêm ngặt và theo sau là V nguyên mẫu 'wear' -> chọn 'must'."
+      },
+      {
+        q: "Could you please _______ me with the database migration script?",
+        options: ["help", "to help", "helping", "helped"],
+        answer: 0,
+        explanation: "Sau modal verb 'Could you please...' là động từ nguyên mẫu không 'to' -> 'help'."
+      },
+      {
+        q: "You _______ test your code locally before pushing to the main branch.",
+        options: ["should", "should to", "ought", "must to"],
+        answer: 0,
+        explanation: "Lời khuyên hợp lý trong công việc: 'should + V nguyên mẫu'."
+      },
+      {
+        q: "Due to bad weather, your flight _______ be delayed by up to two hours.",
+        options: ["may", "ought", "able", "has to"],
+        answer: 0,
+        explanation: "Chỉ khả năng có thể xảy ra trong tương lai: 'may + V'."
+      },
+      {
+        q: "We don't _______ work overtime this weekend because the release is finished.",
+        options: ["have to", "must", "should", "need"],
+        answer: 0,
+        explanation: "Cấu trúc phủ định không bắt buộc phải làm: 'don't have to + V'."
+      }
+    ]
+  },
+  {
+    id: "g-12",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 12 / 22",
+    title: "Danh Động Từ (Gerund - V-ing): Các Động Từ Bắt Buộc Đi Với V-ing",
+    duration: "16 phút",
+    progress: 15,
+    completed: false,
+    coreMindset: "Trong tiếng Anh có một nhóm động từ đặc biệt khi đi kèm động từ thứ hai thì động từ đó BẮT BUỘC phải thêm đuôi '-ing'. Người học thường mắc thói quen dịch word-by-word và dùng 'to V' nên bị sai. Nhóm từ quan trọng nhất: suggest, enjoy, avoid, consider, finish, mind, practice, look forward to.",
+    formulaBox: "S + suggest / avoid / finish / enjoy / consider / keep + V-ING",
+    quickTip3s: "Cứ gặp giới từ (in, on, at, about, for, without, after, before) hoặc cụm 'look forward to' -> Động từ theo sau luôn là V-ing!",
+    comparisonTable: [
+      {
+        wrong: "❌ I suggest to refactor this function.",
+        right: "✅ I suggest refactoring this function.",
+        why: "Sau động từ 'suggest' bắt buộc đi với V-ing: 'suggest refactoring'."
+      },
+      {
+        wrong: "❌ I look forward to meet you at the office.",
+        right: "✅ I look forward to meeting you at the office.",
+        why: "'To' trong 'look forward to' là giới từ -> phía sau bắt buộc cộng V-ing: 'meeting'."
+      }
+    ],
+    questions: [
+      {
+        q: "We should avoid _______ breaking changes to the public API.",
+        options: ["introduce", "introducing", "to introduce", "introduced"],
+        answer: 1,
+        explanation: "Sau động từ 'avoid' (tránh) bắt buộc là V-ing: 'introducing'."
+      },
+      {
+        q: "I look forward to _______ your proposal during tomorrow's team sync.",
+        options: ["discuss", "discussing", "discussed", "discussion"],
+        answer: 1,
+        explanation: "'Look forward to + V-ing' là cấu trúc kinh điển trong email công việc: 'discussing'."
+      },
+      {
+        q: "Have you finished _______ the unit tests for the checkout workflow?",
+        options: ["write", "writing", "to write", "written"],
+        answer: 1,
+        explanation: "Sau 'finish' (hoàn thành) bắt buộc cộng V-ing: 'writing'."
+      },
+      {
+        q: "Would you mind _______ the meeting room door to reduce outside noise?",
+        options: ["close", "closed", "closing", "to close"],
+        answer: 2,
+        explanation: "Cấu trúc lịch sự 'Would you mind + V-ing': 'closing'."
+      },
+      {
+        q: "He is strongly considering _______ a professional cloud architect certification.",
+        options: ["pursue", "pursuing", "to pursue", "pursued"],
+        answer: 1,
+        explanation: "Sau động từ 'consider' (cân nhắc) luôn đi với V-ing: 'pursuing'."
+      }
+    ]
+  },
+  {
+    id: "g-13",
+    category: "Nền tảng (A0-A2)",
+    courseTitle: "Ngữ pháp cơ bản - Lấy lại gốc từ số 0",
+    lessonNumber: "Bài 13 / 22",
+    title: "Động Từ Đi Với To-V (Infinitive): Want, Need, Decide, Plan, Promise",
+    duration: "15 phút",
+    progress: 15,
+    completed: false,
+    coreMindset: "Trái ngược với nhóm V-ing ở bài 12, nhóm này hướng về MỤC ĐÍCH hoặc HÀNH ĐỘNG TRONG TƯƠNG LAI. Các động từ cốt lõi luôn đi với To-V: want, need, decide, plan, hope, agree, refuse, manage, promise, afford.",
+    formulaBox: "S + want / need / decide / plan / hope / promise + TO-V",
+    quickTip3s: "Khi diễn tả mục đích 'để làm gì' đứng ở đầu hoặc giữa câu, ta cũng dùng To-V (In order to / So as to).",
+    comparisonTable: [
+      {
+        wrong: "❌ We decided upgrading the database cluster tomorrow.",
+        right: "✅ We decided to upgrade the database cluster tomorrow.",
+        why: "Sau động từ 'decide' bắt buộc là 'to V': 'decided to upgrade'."
+      },
+      {
+        wrong: "❌ I need you send me the invoice immediately.",
+        right: "✅ I need you to send me the invoice immediately.",
+        why: "Cấu trúc: 'need someone to do something' -> 'need you to send'."
+      }
+    ],
+    questions: [
+      {
+        q: "The engineering committee decided _______ the deadline by one additional sprint.",
+        options: ["extend", "extending", "to extend", "extended"],
+        answer: 2,
+        explanation: "Sau động từ 'decide' bắt buộc là 'to V': 'to extend'."
+      },
+      {
+        q: "We plan _______ a beta version of the software to early adopters next month.",
+        options: ["release", "to release", "releasing", "released"],
+        answer: 1,
+        explanation: "Sau 'plan' (lên kế hoạch) luôn đi với 'to V': 'to release'."
+      },
+      {
+        q: "The client agreed _______ the revised contract terms via electronic signature.",
+        options: ["sign", "to sign", "signing", "signed"],
+        answer: 1,
+        explanation: "Sau 'agree' (đồng ý làm gì) luôn là 'to V': 'to sign'."
+      },
+      {
+        q: "I hope _______ you in person at the upcoming tech conference.",
+        options: ["see", "to see", "seeing", "seen"],
+        answer: 1,
+        explanation: "Sau động từ 'hope' (hy vọng) đi với 'to V': 'to see'."
+      },
+      {
+        q: "Did the vendor manage _______ all the replacement components on time?",
+        options: ["deliver", "to deliver", "delivering", "delivered"],
+        answer: 1,
+        explanation: "Cấu trúc 'manage to do something' (xoay sở / hoàn thành được việc gì) -> 'to deliver'."
+      }
+    ]
+  },
+  {
+    id: "g-14",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 14 / 22",
+    title: "Thì Hiện Tại Hoàn Thành (Present Perfect): Kết Nối Quá Khứ Với Hiện Tại & Dấu Hiệu Nhận Biết",
+    duration: "18 phút",
+    progress: 15,
+    completed: false,
+    coreMindset: "Hiện tại hoàn thành dùng khi hành động bắt đầu trong quá khứ và VẪN CÒN TIẾP DIỄN đến hiện tại (since, for), hoặc hành động vừa mới xảy ra để lại KẾT QUẢ RÕ RÀNG ở hiện tại, hoặc kinh nghiệm từng trải (already, yet, just, ever, never). Khác với Quá khứ đơn (đã hoàn toàn khép lại).",
+    formulaBox: "S + have / has + V3/ed  |  Dấu hiệu: since, for, already, yet, just, recently, so far, over the last few years",
+    quickTip3s: "'Since' + mốc thời gian cụ thể (since 2020, since yesterday). 'For' + khoảng thời gian (for 3 months, for 5 years).",
+    comparisonTable: [
+      {
+        wrong: "❌ I worked at this company since 2021.",
+        right: "✅ I have worked at this company since 2021.",
+        why: "Có 'since 2021' (từ năm 2021 đến nay vẫn làm) -> bắt buộc dùng Hiện tại hoàn thành 'have worked'."
+      },
+      {
+        wrong: "❌ Have you received the confirmation email yet? - Yes, I received it yesterday.",
+        right: "✅ Have you received the confirmation email yet? - Yes, I received it yesterday.",
+        why: "Hỏi trải nghiệm dùng HTHT nhưng trả lời có 'yesterday' thì bắt buộc dùng Quá khứ đơn."
+      }
+    ],
+    questions: [
+      {
+        q: "Our cloud infrastructure _______ stable and responsive over the past twelve months.",
+        options: ["remained", "has remained", "is remaining", "remain"],
+        answer: 1,
+        explanation: "Dấu hiệu 'over the past twelve months' chỉ khoảng thời gian kéo dài đến nay -> dùng 'has remained'."
+      },
+      {
+        q: "Mr. Quang has not _______ the vendor contract despite multiple reminders.",
+        options: ["approve", "approving", "approved", "approval"],
+        answer: 2,
+        explanation: "Sau trợ động từ 'has not' cần dạng quá khứ phân từ V3/ed 'approved'."
+      },
+      {
+        q: "We have already _______ all the required documentation to the compliance auditor.",
+        options: ["send", "sent", "sending", "sends"],
+        answer: 1,
+        explanation: "Sau 'have already' cần dạng V3 của động từ bất quy tắc 'send' là 'sent'."
+      },
+      {
+        q: "The company has expanded its engineering workforce _______ 2022.",
+        options: ["since", "for", "in", "during"],
+        answer: 0,
+        explanation: "Năm 2022 là mốc thời gian điểm bắt đầu -> dùng 'since'."
+      },
+      {
+        q: "So far, our development team _______ forty user stories in this sprint.",
+        options: ["completes", "completed", "has completed", "is completing"],
+        answer: 2,
+        explanation: "Dấu hiệu 'So far' (cho đến nay) luôn đi với thì Hiện tại hoàn thành: 'has completed'."
+      }
+    ]
+  },
+  {
+    id: "g-15",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 15 / 22",
+    title: "Câu Bị Động (Passive Voice): Công Thức To Be + V3 & Ứng Dụng Trong Báo Cáo Kỹ Thuật",
+    duration: "18 phút",
+    progress: 10,
+    completed: false,
+    coreMindset: "Trong môi trường công sở, email và đề thi TOEIC, câu bị động chiếm tần suất cực lớn vì nó nhấn mạnh vào ĐỐI TƯỢNG hoặc KẾT QUẢ HÀNH ĐỘNG thay vì người làm. Quy tắc cốt lõi: Luôn có To Be (chia theo thì) + V3/ed. Nếu phía sau chỗ trống không có tân ngữ nhận tác động thì 90% câu đó là Bị động!",
+    formulaBox: "Bị động chung: S + Be + V3/ed + (by O)  |  Hiện tại: is/are + V3  |  Quá khứ: was/were + V3  |  HTHT: have/has been + V3",
+    quickTip3s: "Nhìn sau chỗ trống: Nếu là giới từ (by, at, in, to, for) mà không có danh từ làm tân ngữ trực tiếp -> Chọn dạng Bị động (Be + V3)!",
+    comparisonTable: [
+      {
+        wrong: "❌ The software bug fixed yesterday.",
+        right: "✅ The software bug was fixed yesterday.",
+        why: "Con bug không thể tự sửa mà phải được sửa -> Bị động quá khứ 'was fixed'."
+      },
+      {
+        wrong: "❌ The email has sent to all clients.",
+        right: "✅ The email has been sent to all clients.",
+        why: "Email được gửi đi -> Bị động Hiện tại hoàn thành 'has been sent'."
+      }
+    ],
+    questions: [
+      {
+        q: "All security patches must be _______ before deploying code to the production servers.",
+        options: ["install", "installing", "installed", "installation"],
+        answer: 2,
+        explanation: "Cấu trúc bị động sau modal verb: 'must be + V3/ed' -> 'installed'."
+      },
+      {
+        q: "The annual financial summary was _______ by the chief accounting officer.",
+        options: ["prepare", "preparing", "prepared", "preparation"],
+        answer: 2,
+        explanation: "Có 'was' và giới từ 'by' -> cấu trúc bị động quá khứ 'was prepared'."
+      },
+      {
+        q: "New laptops will be _______ to all incoming software developers next Monday.",
+        options: ["distributed", "distribute", "distributing", "distribution"],
+        answer: 0,
+        explanation: "Bị động tương lai: 'will be + V3/ed' -> 'distributed' (được phân phát)."
+      },
+      {
+        q: "The critical database issue has already _______ by the DevOps team.",
+        options: ["been resolved", "resolved", "being resolved", "resolve"],
+        answer: 0,
+        explanation: "Vấn đề sự cố đã ĐƯỢC giải quyết -> bị động HTHT: 'has already been resolved'."
+      },
+      {
+        q: "Conference participants are _______ to register at the front desk upon arrival.",
+        options: ["require", "required", "requiring", "requirement"],
+        answer: 1,
+        explanation: "Người tham gia ĐƯỢC yêu cầu làm gì -> 'are required to'."
+      }
+    ]
+  },
+  {
+    id: "g-16",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 16 / 22",
+    title: "Câu Điều Kiện (Conditionals): Loại 1 (Có Thể Xảy Ra) & Loại 2 (Giả Định Trái Thực Tế)",
+    duration: "16 phút",
+    progress: 10,
+    completed: false,
+    coreMindset: "Loại 1 diễn tả sự việc có thật hoặc hoàn toàn có thể xảy ra ở hiện tại/tương lai (Mệnh đề If chia Hiện tại đơn, Mệnh đề chính dùng Will + V). Loại 2 diễn tả sự việc giả định trái ngược với thực tế hiện tại (Mệnh đề If chia Quá khứ đơn - To Be luôn dùng Were, Mệnh đề chính dùng Would/Could + V).",
+    formulaBox: "Loại 1: If + S + V(hiện tại), S + will / can + V(nguyên)  |  Loại 2: If + S + V2/were, S + would / could + V(nguyên)",
+    quickTip3s: "Trong mệnh đề chứa IF, tuyệt đối KHÔNG ĐƯỢC dùng 'will' hay 'would'!",
+    comparisonTable: [
+      {
+        wrong: "❌ If it will rain tomorrow, we will postpone the meeting.",
+        right: "✅ If it rains tomorrow, we will postpone the meeting.",
+        why: "Mệnh đề If loại 1 chia thì Hiện tại đơn 'rains', không dùng 'will'."
+      },
+      {
+        wrong: "❌ If I was you, I would accept the job offer.",
+        right: "✅ If I were you, I would accept the job offer.",
+        why: "Trong câu điều kiện loại 2 giả định, To Be chuẩn luôn dùng 'were' cho mọi ngôi."
+      }
+    ],
+    questions: [
+      {
+        q: "If the QA team _______ any critical bugs today, the release will be postponed.",
+        options: ["discovers", "will discover", "discovered", "discovering"],
+        answer: 0,
+        explanation: "Mệnh đề If câu điều kiện loại 1 chia Hiện tại đơn với chủ ngữ số ít -> 'discovers'."
+      },
+      {
+        q: "If we had a larger development budget, we _______ hire three more senior engineers.",
+        options: ["will", "would", "can", "shall"],
+        answer: 1,
+        explanation: "Mệnh đề If chia quá khứ 'had' (Loại 2) -> mệnh đề chính dùng 'would + V'."
+      },
+      {
+        q: "You will achieve a high TOEIC score if you _______ consistently every day.",
+        options: ["practice", "will practice", "practiced", "practicing"],
+        answer: 0,
+        explanation: "Mệnh đề If loại 1 chia Hiện tại đơn: 'practice'."
+      },
+      {
+        q: "If the server load exceeds 80%, the auto-scaler _______ activate automatically.",
+        options: ["will", "would", "had", "was"],
+        answer: 0,
+        explanation: "Câu điều kiện loại 1 chỉ kết quả thực tế trong tương lai -> dùng 'will'."
+      },
+      {
+        q: "If I _______ more free time this weekend, I would refactor the entire legacy repository.",
+        options: ["have", "had", "will have", "having"],
+        answer: 1,
+        explanation: "Mệnh đề chính dùng 'would refactor' (Loại 2) -> mệnh đề If chia quá khứ 'had'."
+      }
+    ]
+  },
+  {
+    id: "g-17",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 17 / 22",
+    title: "Mệnh Đề Quan Hệ (Relative Clauses): Who, Whom, Which, That, Whose & Rút Gọn Mệnh Đề",
+    duration: "18 phút",
+    progress: 10,
+    completed: false,
+    coreMindset: "Dùng để nối 2 câu và bổ nghĩa cho danh từ đứng ngay trước nó. WHO thay thế cho người (làm chủ ngữ). WHOM thay thế cho người (làm tân ngữ). WHICH thay thế cho đồ vật / sự việc. THAT thay thế được cho cả người lẫn vật trong mệnh đề xác định (không có dấu phẩy). WHOSE chỉ sở hữu (whose + danh từ).",
+    formulaBox: "Người + WHO + V  |  Vật + WHICH + V / S+V  |  Người/Vật + WHOSE + Noun + V",
+    quickTip3s: "Sau WHOSE luôn là một Danh từ không có mạo từ đi kèm (VD: whose car, whose computer).",
+    comparisonTable: [
+      {
+        wrong: "❌ The developer which fixed the bug was rewarded.",
+        right: "✅ The developer who fixed the bug was rewarded.",
+        why: "'The developer' là người nên phải dùng đại từ quan hệ 'who', không dùng 'which'."
+      },
+      {
+        wrong: "❌ The candidate who resume was impressive got hired.",
+        right: "✅ The candidate whose resume was impressive got hired.",
+        why: "Chỉ hồ sơ của ứng viên đó (sở hữu) -> dùng 'whose resume'."
+      }
+    ],
+    questions: [
+      {
+        q: "The candidate _______ passed the technical coding interview will meet the director.",
+        options: ["who", "which", "whom", "whose"],
+        answer: 0,
+        explanation: "Bổ nghĩa cho người 'The candidate' và đóng vai trò làm chủ ngữ cho 'passed' -> dùng 'who'."
+      },
+      {
+        q: "We need to fix the microservice _______ handles payment transactions.",
+        options: ["who", "which", "whom", "whose"],
+        answer: 1,
+        explanation: "Bổ nghĩa cho vật 'the microservice' -> dùng 'which'."
+      },
+      {
+        q: "The engineer _______ laptop was damaged during the flight received a replacement.",
+        options: ["who", "which", "whose", "that"],
+        answer: 2,
+        explanation: "Chỉ sở hữu chiếc laptop của kỹ sư đó ('laptop was damaged') -> dùng 'whose'."
+      },
+      {
+        q: "The revised guidelines _______ were published yesterday apply to all departments.",
+        options: ["that", "who", "whom", "whose"],
+        answer: 0,
+        explanation: "Bổ nghĩa cho tài liệu 'The revised guidelines' trong mệnh đề xác định -> dùng 'that'."
+      },
+      {
+        q: "The keynote speaker _______ we invited from Silicon Valley has just arrived.",
+        options: ["whom", "which", "whose", "where"],
+        answer: 0,
+        explanation: "Bổ nghĩa cho người và đóng vai trò tân ngữ (we invited [him]) -> dùng 'whom'."
+      }
+    ]
+  },
+  {
+    id: "g-18",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 18 / 22",
+    title: "Mẹo TOEIC Part 5: Nhìn Đuôi Từ Loại (Noun - Verb - Adj - Adv) Chọn Đáp Án Trong 5 Giây",
+    duration: "17 phút",
+    progress: 10,
+    completed: false,
+    coreMindset: "Trong TOEIC Part 5 có tới 10-14 câu chỉ kiểm tra Từ Loại. Bạn KHÔNG CẦN DỊCH HẾT CẢ CÂU. Chỉ cần nhìn từ đứng ngay trước và ngay sau chỗ trống để xác định vị trí đó cần Danh từ, Tính từ hay Trạng từ. Ghi nhớ các đuôi từ loại đặc trưng: Danh từ (-tion, -ment, -ness, -ity, -ance); Tính từ (-ive, -able, -ful, -ous, -al); Trạng từ (-ly).",
+    formulaBox: "a/the + (Adv) + TÍNH TỪ + DANH TỪ  |  Trợ động từ (have/is) + TRẠNG TỪ + Động từ chính (V3/ed/ing)",
+    quickTip3s: "CỰC KỲ QUAN TRỌNG: 4 từ có đuôi -al nhưng là DANH TỪ: Approval (sự phê duyệt), Proposal (bản đề xuất), Renewal (sự gia hạn), Arrival (sự đến nơi)!",
+    comparisonTable: [
+      {
+        wrong: "❌ We need your approve before starting.",
+        right: "✅ We need your approval before starting.",
+        why: "Sau tính từ sở hữu 'your' bắt buộc là Danh từ -> chọn 'approval' (không dùng động từ 'approve')."
+      },
+      {
+        wrong: "❌ The system runs very smooth.",
+        right: "✅ The system runs very smoothly.",
+        why: "Bổ nghĩa cho động từ thường 'runs' bắt buộc dùng Trạng từ đuôi -ly: 'smoothly'."
+      }
+    ],
+    questions: [
+      {
+        q: "All department heads must obtain written _______ from executive management.",
+        options: ["approve", "approving", "approval", "approved"],
+        answer: 2,
+        explanation: "Đứng sau tính từ 'written' cần một Danh từ làm tân ngữ -> chọn 'approval' (sự phê duyệt bằng văn bản)."
+      },
+      {
+        q: "The automated pipeline has _______ reduced deployment downtime.",
+        options: ["significant", "significantly", "significance", "signify"],
+        answer: 1,
+        explanation: "Đứng giữa trợ động từ 'has' và động từ chính 'reduced' là vị trí của Trạng từ đuôi -ly -> 'significantly'."
+      },
+      {
+        q: "The committee accepted our budget _______ with minor adjustments.",
+        options: ["propose", "proposal", "proposing", "proposed"],
+        answer: 1,
+        explanation: "Cần danh từ bổ nghĩa sau cụm 'budget' -> 'budget proposal' (bản đề xuất ngân sách)."
+      },
+      {
+        q: "Clean architecture ensures that our system remains highly _______ over time.",
+        options: ["maintain", "maintainable", "maintenance", "maintainer"],
+        answer: 1,
+        explanation: "Sau linking verb 'remains' và trạng từ 'highly' cần một Tính từ -> 'maintainable' (dễ bảo trì)."
+      },
+      {
+        q: "Customer feedback was _______ positive regarding the redesigned user interface.",
+        options: ["overwhelm", "overwhelmingly", "overwhelming", "overwhelmed"],
+        answer: 1,
+        explanation: "Bổ nghĩa cho tính từ 'positive' cần một Trạng từ đuôi -ly -> 'overwhelmingly'."
+      }
+    ]
+  },
+  {
+    id: "g-19",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 19 / 22",
+    title: "Mẹo TOEIC Part 5: Cụm Danh Từ & Đại Từ Phản Thân (Myself, Himself, Themselves)",
+    duration: "16 phút",
+    progress: 5,
+    completed: false,
+    coreMindset: "Đại từ phản thân (-self / -selves) dùng trong 2 trường hợp chính trong đề thi TOEIC: (1) Khi chủ ngữ và tân ngữ là cùng một người (VD: He introduced himself), (2) Đứng ở cuối câu hoặc ngay sau chủ ngữ để NHẤN MẠNH chính người đó tự tay làm mà không có ai giúp đỡ (VD: She wrote the report herself = by herself).",
+    formulaBox: "S + V + Tân ngữ phản thân (-self)  |  S + (V + O) + by oneself / -self",
+    quickTip3s: "'By myself' = 'On my own' = Tự một mình làm, không có sự trợ giúp của người khác.",
+    comparisonTable: [
+      {
+        wrong: "❌ The CEO wrote the keynote speech him.",
+        right: "✅ The CEO wrote the keynote speech himself.",
+        why: "Nhấn mạnh chính ông ấy tự viết -> dùng đại từ phản thân 'himself'."
+      },
+      {
+        wrong: "❌ They finished the project by themself.",
+        right: "✅ They finished the project by themselves.",
+        why: "Chủ ngữ 'They' số nhiều nên dạng phản thân phải có đuôi '-selves': 'themselves'."
+      }
+    ],
+    questions: [
+      {
+        q: "The senior architect configured the continuous integration pipeline _______.",
+        options: ["he", "him", "his", "himself"],
+        answer: 3,
+        explanation: "Đứng cuối câu hoàn chỉnh để nhấn mạnh chính vị kỹ sư trưởng tự tay cấu hình -> 'himself'."
+      },
+      {
+        q: "All workshop attendees are expected to familiarize _______ with the safety protocol.",
+        options: ["them", "themselves", "their", "theirs"],
+        answer: 1,
+        explanation: "Cụm 'familiarize oneself with something' (tự làm quen với cái gì) -> chọn 'themselves'."
+      },
+      {
+        q: "She managed to complete the complex refactoring assignment on _______ own.",
+        options: ["her", "hers", "herself", "she"],
+        answer: 0,
+        explanation: "Cụm từ cố định: 'on one's own' (bằng chính nỗ lực của ai đó) -> 'on her own'."
+      },
+      {
+        q: "The application automatically restarts _______ whenever a fatal exception is caught.",
+        options: ["it", "its", "itself", "it's"],
+        answer: 2,
+        explanation: "Ứng dụng tự động khởi động lại chính nó -> dùng 'itself'."
+      },
+      {
+        q: "Mr. Davis thanked everyone who helped _______ prepare the conference room.",
+        options: ["he", "him", "himself", "his"],
+        answer: 1,
+        explanation: "Sau động từ 'helped' cần tân ngữ đơn thuần 'him' (ai đó đã giúp anh ấy)."
+      }
+    ]
+  },
+  {
+    id: "g-20",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 20 / 22",
+    title: "Mẹo TOEIC Part 5: Phân Biệt Liên Từ (Conjunctions) vs Giới Từ (Prepositions) Cực Dễ",
+    duration: "18 phút",
+    progress: 5,
+    completed: false,
+    coreMindset: "Đây là dạng câu bẫy ăn điểm kinh điển nhất trong TOEIC Part 5: Cặp 'Mặc dù': Although / Even though / While + MỆNH ĐỀ (S + V) vs Despite / In spite of + CỤM DANH TỪ / V-ING. Cặp 'Bởi vì': Because / Since / As + MỆNH ĐỀ (S + V) vs Because of / Due to + CỤM DANH TỪ / V-ING. Chỉ cần nhìn sau chỗ trống có động từ chia thì hay không là chọn ngay đáp án!",
+    formulaBox: "Because / Although / While + [S + V]  |  Because of / Due to / Despite + [Danh từ / V-ing]",
+    quickTip3s: "Sau chỗ trống thấy [S + V đầy đủ] -> Chọn Liên từ (Because, Although). Sau chỗ trống chỉ là [Cụm danh từ / V-ing] -> Chọn Giới từ (Due to, Despite).",
+    comparisonTable: [
+      {
+        wrong: "❌ Because of the weather was bad, the flight was delayed.",
+        right: "✅ Because the weather was bad, the flight was delayed.",
+        why: "'The weather was bad' có đầy đủ Chủ ngữ + Động từ 'was' -> bắt buộc dùng liên từ 'Because'."
+      },
+      {
+        wrong: "❌ Despite he was tired, he finished the report.",
+        right: "✅ Although he was tired, he finished the report.",
+        why: "Sau chỗ trống là mệnh đề 'he was tired' -> dùng liên từ 'Although', không dùng giới từ 'Despite'."
+      }
+    ],
+    questions: [
+      {
+        q: "_______ the severe server outage, our engineering team kept customer data safe.",
+        options: ["Although", "Despite", "Even though", "While"],
+        answer: 1,
+        explanation: "Phía sau là cụm danh từ 'the severe server outage' (không có động từ chia thì) mang nghĩa tương phản -> chọn giới từ 'Despite'."
+      },
+      {
+        q: "The flight was delayed _______ there was heavy snowfall at Munich Airport.",
+        options: ["because", "because of", "due to", "owing to"],
+        answer: 0,
+        explanation: "Phía sau là mệnh đề đầy đủ 'there was heavy snowfall' (có động từ 'was') -> chọn liên từ 'because'."
+      },
+      {
+        q: "_______ the software upgrade was completed on time, extensive testing is still needed.",
+        options: ["Despite", "In spite of", "Although", "Because of"],
+        answer: 2,
+        explanation: "Phía sau là mệnh đề đầy đủ 'the software upgrade was completed' -> chọn liên từ 'Although'."
+      },
+      {
+        q: "Production shipments were temporarily suspended _______ technical difficulties.",
+        options: ["because", "due to", "although", "since"],
+        answer: 1,
+        explanation: "Phía sau là cụm danh từ 'technical difficulties' -> chọn giới từ 'due to'."
+      },
+      {
+        q: "Please turn off all mobile devices _______ the airplane is taking off.",
+        options: ["during", "while", "despite", "because of"],
+        answer: 1,
+        explanation: "Phía sau là mệnh đề 'the airplane is taking off' -> chọn liên từ 'while' (trong khi)."
+      }
+    ]
+  },
+  {
+    id: "g-21",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 21 / 22",
+    title: "Mẹo TOEIC Part 5: Rút Gọn Mệnh Đề Quan Hệ (V-ing Chủ Động vs V-ed Bị Động)",
+    duration: "18 phút",
+    progress: 5,
+    completed: false,
+    coreMindset: "Rút gọn mệnh đề quan hệ xuất hiện ở mọi đề thi TOEIC điểm 600+. Quy tắc vàng 3 giây: Nếu danh từ thực hiện hành động (chủ động) -> Rút gọn bằng V-ing. Nếu danh từ nhận tác động từ hành động khác (bị động) -> Rút gọn bằng V-ed/V3. Sau V-ing thường có tân ngữ trực tiếp; sau V-ed thường là giới từ (by, in, to, for).",
+    formulaBox: "Chủ động: The person [who is standing] -> The person STANDING  |  Bị động: The report [which was written by Nam] -> The report WRITTEN by Nam",
+    quickTip3s: "Nhìn sau chỗ trống: Có tân ngữ danh từ -> Chọn V-ing. Có giới từ (by, at, on, to) hoặc dấu phẩy -> Chọn V-ed/V3!",
+    comparisonTable: [
+      {
+        wrong: "❌ The email sending to all staff contained the new schedule.",
+        right: "✅ The email sent to all staff contained the new schedule.",
+        why: "Email được gửi đi (bị động) -> rút gọn bằng V3 'sent', không dùng V-ing 'sending'."
+      },
+      {
+        wrong: "❌ Passengers wished to change flights should contact the desk.",
+        right: "✅ Passengers wishing to change flights should contact the desk.",
+        why: "Hành khách chủ động mong muốn (chủ động) -> rút gọn bằng V-ing 'wishing'."
+      }
+    ],
+    questions: [
+      {
+        q: "Anyone _______ to participate in the marathon should register by Wednesday.",
+        options: ["wish", "wished", "wishing", "wishes"],
+        answer: 2,
+        explanation: "Rút gọn từ 'Anyone who wishes' -> mang nghĩa chủ động nên dùng V-ing: 'wishing'."
+      },
+      {
+        q: "The warranty policy _______ in the instruction manual applies for two years.",
+        options: ["describe", "describing", "described", "description"],
+        answer: 2,
+        explanation: "Chính sách bảo hành ĐƯỢC miêu tả trong sách (bị động) -> rút gọn bằng V3: 'described'."
+      },
+      {
+        q: "Packages _______ hazardous materials cannot be shipped via air mail.",
+        options: ["contain", "contained", "containing", "contains"],
+        answer: 2,
+        explanation: "Gói hàng chủ động chứa đồ vật (có tân ngữ 'hazardous materials' theo sau) -> dùng V-ing: 'containing'."
+      },
+      {
+        q: "The products _______ at our Da Nang manufacturing facility meet ISO standards.",
+        options: ["manufacture", "manufactured", "manufacturing", "manufacturer"],
+        answer: 1,
+        explanation: "Sản phẩm ĐƯỢC sản xuất tại nhà máy (bị động, theo sau là giới từ 'at') -> dùng V-ed: 'manufactured'."
+      },
+      {
+        q: "Candidates _______ strong C# and .NET experience are encouraged to apply.",
+        options: ["have", "having", "had", "has"],
+        answer: 1,
+        explanation: "Ứng viên chủ động có kinh nghiệm (có tân ngữ 'strong experience') -> rút gọn chủ động bằng V-ing: 'having'."
+      }
+    ]
+  },
+  {
+    id: "g-22",
+    category: "TOEIC Part 5 & 6",
+    courseTitle: "Trọng Tâm Ngữ Pháp TOEIC Part 5 & 6",
+    lessonNumber: "Bài 22 / 22",
+    title: "Sự Hòa Hợp Chủ Ngữ & Động Từ (Subject-Verb Agreement): Bẫy Điểm Tuyệt Đối TOEIC",
+    duration: "18 phút",
+    progress: 5,
+    completed: false,
+    coreMindset: "Đề thi TOEIC thường đánh lừa thí sinh bằng cách chèn một cụm giới từ dài ngoằng đứng giữa Chủ ngữ và Động từ (VD: The quality of these high-tech components IS critical). Bạn phải gạch bỏ phần bổ nghĩa ở giữa, tìm đúng Chủ ngữ cốt lõi ở đầu câu để chia động từ số ít hay số nhiều!",
+    formulaBox: "Chủ ngữ số ít / N không đếm được -> Động từ số ít (is, has, V-s/es)  |  Chủ ngữ số nhiều -> Động từ số nhiều (are, have, V nguyên)",
+    quickTip3s: "Gặp các đại từ bất định: Everyone, Each, Every, Somebody, Anybody -> Động từ LUÔN LUÔN chia ở dạng SỐ ÍT!",
+    comparisonTable: [
+      {
+        wrong: "❌ The cost of all new computer monitors are very high.",
+        right: "✅ The cost of all new computer monitors is very high.",
+        why: "Chủ ngữ chính là 'The cost' (số ít), không phải 'monitors' -> động từ phải là 'is'."
+      },
+      {
+        wrong: "❌ Everyone in the IT department have submitted the weekly report.",
+        right: "✅ Everyone in the IT department has submitted the weekly report.",
+        why: "'Everyone' là đại từ bất định số ít -> động từ phải chia số ít: 'has submitted'."
+      }
+    ],
+    questions: [
+      {
+        q: "The quality of the manufactured components _______ carefully inspected before packaging.",
+        options: ["is", "are", "have", "were"],
+        answer: 0,
+        explanation: "Chủ ngữ cốt lõi là 'The quality' (danh từ số ít không đếm được) -> dùng động từ số ít 'is'."
+      },
+      {
+        q: "Every employee in our international offices _______ required to undergo compliance training.",
+        options: ["is", "are", "be", "have"],
+        answer: 0,
+        explanation: "Chủ ngữ bắt đầu bằng 'Every' luôn đi với động từ số ít -> chọn 'is'."
+      },
+      {
+        q: "The results from the latest marketing survey _______ significant consumer interest.",
+        options: ["indicates", "indicate", "indicating", "has indicated"],
+        answer: 1,
+        explanation: "Chủ ngữ cốt lõi là 'The results' (danh từ số nhiều) -> động từ nguyên mẫu số nhiều: 'indicate'."
+      },
+      {
+        q: "Neither the project manager nor the developers _______ available for a call right now.",
+        options: ["is", "are", "was", "be"],
+        answer: 1,
+        explanation: "Quy tắc 'Neither... nor...': Động từ hòa hợp theo chủ ngữ gần nó nhất. 'The developers' là số nhiều -> chọn 'are'."
+      },
+      {
+        q: "A detailed list of all system dependencies _______ provided in the project README.",
+        options: ["is", "are", "were", "have been"],
+        answer: 0,
+        explanation: "Chủ ngữ chính là 'A detailed list' (danh từ số ít) -> chia động từ số ít 'is'."
+      }
+    ]
+  }
+];
+
+fs.writeFileSync(path.resolve('src/data/grammar_lessons.json'), JSON.stringify(lessons, null, 2), 'utf-8');
+console.log(`Generated ${lessons.length} grammar lessons with full quizzes!`);
