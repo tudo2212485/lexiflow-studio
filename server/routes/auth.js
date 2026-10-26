@@ -9,7 +9,8 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lexiflow_super_secret_jwt_key_2026_modern_fullstack_studio';
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '');
+const getEffectiveGoogleClientId = () => (process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '').trim();
+const googleClient = new OAuth2Client(getEffectiveGoogleClientId());
 
 // Default initial notebook cards to seed for new accounts
 const SEED_NOTEBOOK_CARDS = [
@@ -66,10 +67,11 @@ function generateToken(user) {
   );
 }
 
-// Helper: create nodemailer transporter with SMTP_EMAIL and SMTP_APP_PASSWORD
+// Helper: create nodemailer transporter with sanitized SMTP_EMAIL and SMTP_APP_PASSWORD
 function createTransporter() {
-  const user = process.env.SMTP_EMAIL || process.env.SMTP_USER;
-  const pass = process.env.SMTP_APP_PASSWORD || process.env.SMTP_PASS;
+  const user = (process.env.SMTP_EMAIL || process.env.SMTP_USER || '').trim();
+  // Strip all whitespace from App Password to ensure robust authentication
+  const pass = (process.env.SMTP_APP_PASSWORD || process.env.SMTP_PASS || '').replace(/\s+/g, '');
 
   if (!user || !pass) {
     return null;
