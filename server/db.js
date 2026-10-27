@@ -38,20 +38,31 @@ function parseDbConfig(connectionString) {
 
 const config = parseDbConfig(dbUrl);
 
-// Create Pool for application queries
+// Detect if running against a local database or a cloud database (Neon, Supabase, etc.)
+const isLocal =
+  config.host === 'localhost' ||
+  config.host === '127.0.0.1' ||
+  dbUrl.includes('localhost') ||
+  dbUrl.includes('127.0.0.1');
+
+// Create Pool with SSL enabled for cloud database providers
 export const pool = new Pool({
   connectionString: dbUrl,
-  max: 20,
+  ssl: isLocal ? false : { rejectUnauthorized: false },
+  max: process.env.VERCEL ? 5 : 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000
+  connectionTimeoutMillis: 10000
 });
 
 export const query = (text, params) => pool.query(text, params);
 
 /**
  * Ensure the target database exists; if not, create it via maintenance database 'postgres'
+ * (Skipped on Cloud databases like Neon/Supabase where DB is pre-provisioned)
  */
 async function ensureDatabaseExists() {
+  if (!isLocal) return;
+
   const targetDb = config.database;
   if (!targetDb || targetDb === 'postgres') return;
 
@@ -83,6 +94,22 @@ async function ensureDatabaseExists() {
       await maintenanceClient.end();
     } catch {}
   }
+}
+
+let initDbPromise = null;
+
+/**
+ * Singleton initializer for Serverless cold starts
+ */
+export function ensureDbInitialized() {
+  if (!initDbPromise) {
+    initDbPromise = initDatabase().catch((err) => {
+      console.error('[Database] Lỗi tự động khởi tạo bảng:', err.message);
+      initDbPromise = null; // Allow retry on subsequent requests
+      throw err;
+    });
+  }
+  return initDbPromise;
 }
 
 /**

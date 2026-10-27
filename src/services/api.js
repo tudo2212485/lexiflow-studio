@@ -58,7 +58,7 @@ async function apiRequest(endpoint, options = {}) {
     return data;
   } catch (err) {
     if (err.name === 'TypeError' && err.message.includes('fetch')) {
-      throw new Error('Không thể kết nối tới Backend PostgreSQL (localhost:5000). Hãy đảm bảo server đang chạy!');
+      throw new Error('Không thể kết nối tới Backend PostgreSQL API. Hãy kiểm tra kết nối mạng và máy chủ API!');
     }
     throw err;
   }

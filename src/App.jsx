@@ -20,9 +20,92 @@ import AILab from './components/AILab';
 import AuthModal from './components/AuthModal';
 import { authApi, userApi, getStoredToken } from './services/api';
 
+// Default clean guest stats (no user data leakage when unauthenticated)
+export const GUEST_STATS = {
+  name: 'Học viên',
+  xp: 0,
+  level: 1,
+  streak: 0,
+  dailyGoalMinutes: 30,
+  studiedMinutesToday: 0,
+  wordsLearnedToday: 0,
+  wordsReviewedToday: 0,
+  quizzesTakenToday: 0,
+  completedStages: 0,
+  accent: 'en-US'
+};
+
+// Pure generator for 100% clean courses with zero previous progress
+export function getFreshVocabCourses() {
+  return INITIAL_VOCAB_COURSES.map((course) => ({
+    ...course,
+    subdecks: (course.subdecks || []).map((subdeck) => ({
+      ...subdeck,
+      masteredCount: 0,
+      learningCount: 0,
+      dueCount: 0,
+      progressPercent: 0,
+      lastStudied: null,
+      cards: (subdeck.cards || []).map((card) => ({
+        ...card,
+        status: 'new',
+        stepCompleted: 0,
+        due: false,
+        nextReviewAt: null,
+        lastStudiedAt: null,
+        reviewCount: 0,
+        wrongCount: 0,
+        intervalDays: 0
+      }))
+    }))
+  }));
+}
+
+// Helper to overlay progress onto courses
+export function applyVocabProgressToCourses(baseCourses, progressMap) {
+  if (!progressMap || Object.keys(progressMap).length === 0) {
+    return baseCourses;
+  }
+  return baseCourses.map((c) => ({
+    ...c,
+    subdecks: (c.subdecks || []).map((s) => {
+      const updatedCards = (s.cards || []).map((card) => {
+        const prog = progressMap[card.id];
+        if (!prog) return { ...card, status: card.status || 'new' };
+        return {
+          ...card,
+          status: prog.status || card.status || 'new',
+          stepCompleted: prog.stepCompleted !== undefined ? prog.stepCompleted : (card.stepCompleted || 0),
+          lastStudiedAt: prog.lastStudiedAt || card.lastStudiedAt || null,
+          nextReviewAt: prog.nextReviewAt || card.nextReviewAt || null,
+          reviewCount: prog.reviewCount || card.reviewCount || 0,
+          intervalDays: prog.intervalDays || card.intervalDays || 0,
+          due: prog.due !== undefined ? prog.due : (card.due || false)
+        };
+      });
+      const masteredCount = updatedCards.filter((card) => card.status === 'mastered').length;
+      const learningCount = updatedCards.filter((card) => card.status === 'learning' || card.status === 'weak').length;
+      const dueCount = updatedCards.filter((card) =>
+        (card.status === 'learning' || card.status === 'weak') &&
+        ((card.nextReviewAt && card.nextReviewAt <= Date.now()) || card.due)
+      ).length;
+      return {
+        ...s,
+        cards: updatedCards,
+        masteredCount,
+        learningCount,
+        dueCount,
+        progressPercent: Math.min(100, Math.round((masteredCount / (s.totalWords || updatedCards.length || 50)) * 100))
+      };
+    })
+  }));
+}
+
 // Dedicated vocab progress map storage helper (stores status, stepCompleted, lastStudiedAt, nextReviewAt, reviewCount)
 export function getStoredVocabProgress() {
   try {
+    const token = getStoredToken();
+    if (!token) return {}; // Clean slate when not logged in
     const raw = localStorage.getItem('lexiflow_vocab_progress_v2');
     return raw ? JSON.parse(raw) : {};
   } catch {
@@ -38,56 +121,29 @@ export function saveStoredVocabProgress(map) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'vocab' | 'grammar' | 'speaking' | 'ai'
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar collapse
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setIsSidebarCollapsed((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Persistent storage for Vocab Courses with merged progress
   const [vocabCourses, setVocabCourses] = useState(() => {
-    let baseCourses = INITIAL_VOCAB_COURSES;
-    try {
-      const saved = localStorage.getItem('lexiflow_v6_1000vocab_courses');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.[0]?.subdecks?.[0]?.cards?.length === 50 && parsed?.[0]?.subdecks?.length === 20) {
-          baseCourses = parsed;
-        }
-      }
-    } catch {}
-
-    // Merge progress map from lexiflow_vocab_progress_v2
+    const token = getStoredToken();
+    if (!token) {
+      return getFreshVocabCourses();
+    }
+    const fresh = getFreshVocabCourses();
     const progressMap = getStoredVocabProgress();
-    return baseCourses.map((c) => ({
-      ...c,
-      subdecks: c.subdecks?.map((s) => {
-        const nextSubdeck = { ...s };
-        delete nextSubdeck.lastStudiedIndex; // Remove static index so users are never stuck
-        const updatedCards = (s.cards || []).map((card) => {
-          const prog = progressMap[card.id];
-          if (!prog) return card;
-          return {
-            ...card,
-            status: prog.status || card.status || 'new',
-            stepCompleted: prog.stepCompleted !== undefined ? prog.stepCompleted : (card.stepCompleted || 0),
-            lastStudiedAt: prog.lastStudiedAt || card.lastStudiedAt || null,
-            nextReviewAt: prog.nextReviewAt || card.nextReviewAt || null,
-            reviewCount: prog.reviewCount || card.reviewCount || 0,
-            intervalDays: prog.intervalDays || card.intervalDays || 0,
-            due: prog.due !== undefined ? prog.due : card.due
-          };
-        });
-        const masteredCount = updatedCards.filter((card) => card.status === 'mastered').length;
-        const learningCount = updatedCards.filter((card) => card.status === 'learning' || card.status === 'weak').length;
-        return {
-          ...nextSubdeck,
-          cards: updatedCards,
-          masteredCount,
-          learningCount,
-          dueCount: updatedCards.filter((card) =>
-            (card.status === 'learning' || card.status === 'weak') &&
-            ((card.nextReviewAt && card.nextReviewAt <= Date.now()) || card.due)
-          ).length,
-          progressPercent: Math.min(100, Math.round((masteredCount / (s.totalWords || updatedCards.length || 50)) * 100))
-        };
-      })
-    }));
+    return applyVocabProgressToCourses(fresh, progressMap);
   });
 
   // Persistent storage for Grammar Courses (3 Courses, 49 Lessons with 5-Slide Interactive Player & Voice)
@@ -106,53 +162,43 @@ export default function App() {
     }
   });
 
-  // Persistent study notes
+  // Persistent study notes (Guest starts with empty notebook, loads only on auth)
   const [studyNotes, setStudyNotes] = useState(() => {
+    const token = getStoredToken();
+    if (!token) return [];
     try {
       const saved = localStorage.getItem('lexiflow_v4_notes');
-      return saved ? JSON.parse(saved) : INITIAL_NOTES;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_NOTES;
+      return [];
     }
   });
 
   // Scratchpad
   const [scratchpadText, setScratchpadText] = useState(() => {
+    const token = getStoredToken();
+    if (!token) {
+      return '📌 Ghi chú học tập:\n- Đăng nhập để lưu tiến độ học tập trên đám mây và đồng bộ giữa các thiết bị.\n- Luyện tập 15 phút mỗi ngày để củng cố trí nhớ ngắt quãng (SRS).\n';
+    }
     try {
       return (
         localStorage.getItem('lexiflow_v4_scratchpad') ||
-        '📌 Mục tiêu tuần này của Tú:\n- Nắm chắc bản chất câu To Be vs Động từ thường\n- Thuộc 50 từ cốt lõi trong bộ 1000 Từ Thông Dụng & TOEIC 600\n- Mỗi ngày nghe chậm 0.75x rồi nhại lại 5 câu giao tiếp.\n- Xuất file Anki (.csv) để ôn tập trên điện thoại.\n'
+        '📌 Ghi chú học tập:\n- Luyện tập 15 phút mỗi ngày để củng cố trí nhớ ngắt quãng (SRS).\n'
       );
     } catch {
       return '';
     }
   });
 
-  // User Stats
+  // User Stats (Guest starts with GUEST_STATS: 0 XP, Cấp 1, 0 streak, 'Học viên')
   const [userStats, setUserStats] = useState(() => {
+    const token = getStoredToken();
+    if (!token) return GUEST_STATS;
     try {
       const saved = localStorage.getItem('lexiflow_v4_stats');
-      return saved
-        ? JSON.parse(saved)
-        : {
-            name: 'Tú Đỗ',
-            xp: 2450,
-            level: 10,
-            streak: 6,
-            dailyGoalMinutes: 30,
-            studiedMinutesToday: 25,
-            accent: 'en-US'
-          };
+      return saved ? JSON.parse(saved) : GUEST_STATS;
     } catch {
-      return {
-        name: 'Tú Đỗ',
-        xp: 2450,
-        level: 10,
-        streak: 6,
-        dailyGoalMinutes: 30,
-        studiedMinutesToday: 25,
-        accent: 'en-US'
-      };
+      return GUEST_STATS;
     }
   });
 
@@ -163,7 +209,13 @@ export default function App() {
   // Auto-sync user profile & progress from PostgreSQL on mount if token exists
   useEffect(() => {
     const token = getStoredToken();
-    if (!token) return;
+    if (!token) {
+      // Clear legacy localStorage from unauthenticated state to avoid data leaks
+      setUserStats(GUEST_STATS);
+      setStudyNotes([]);
+      setVocabCourses(getFreshVocabCourses());
+      return;
+    }
 
     userApi.getSync()
       .then((data) => {
@@ -180,13 +232,12 @@ export default function App() {
             name: data.profile.fullName || prev.name
           }));
         }
-        if (data?.notebooks && Array.isArray(data.notebooks) && data.notebooks.length > 0) {
+        if (data?.notebooks && Array.isArray(data.notebooks)) {
           setStudyNotes(data.notebooks);
         }
         if (data?.vocabProgress && Object.keys(data.vocabProgress).length > 0) {
-          const stored = getStoredVocabProgress();
-          const merged = { ...stored, ...data.vocabProgress };
-          saveStoredVocabProgress(merged);
+          saveStoredVocabProgress(data.vocabProgress);
+          setVocabCourses((prev) => applyVocabProgressToCourses(prev, data.vocabProgress));
         }
       })
       .catch((err) => {
@@ -194,6 +245,9 @@ export default function App() {
         if (err.status === 401 || err.status === 403) {
           authApi.logout();
           setCurrentUser(null);
+          setUserStats(GUEST_STATS);
+          setStudyNotes([]);
+          setVocabCourses(getFreshVocabCourses());
         }
       });
   }, []);
@@ -207,22 +261,32 @@ export default function App() {
         ...syncData.profile,
         name: syncData.profile.fullName || prev.name
       }));
+    } else if (user?.fullName) {
+      setUserStats((prev) => ({ ...prev, name: user.fullName }));
     }
-    if (syncData?.notebooks && Array.isArray(syncData.notebooks) && syncData.notebooks.length > 0) {
+    if (syncData?.notebooks && Array.isArray(syncData.notebooks)) {
       setStudyNotes(syncData.notebooks);
     }
     if (syncData?.vocabProgress && Object.keys(syncData.vocabProgress).length > 0) {
-      const stored = getStoredVocabProgress();
-      const merged = { ...stored, ...syncData.vocabProgress };
-      saveStoredVocabProgress(merged);
+      saveStoredVocabProgress(syncData.vocabProgress);
+      setVocabCourses((prev) => applyVocabProgressToCourses(prev, syncData.vocabProgress));
     }
   };
 
-  // Logout handler
+  // Logout handler (Completely reset all data back to clean guest slate)
   const handleLogout = () => {
     authApi.logout();
     setCurrentUser(null);
-    showToast('👋 Đã đăng xuất tài khoản. Bạn đang ở chế độ xem cục bộ.');
+    setUserStats(GUEST_STATS);
+    setStudyNotes([]);
+    setVocabCourses(getFreshVocabCourses());
+    try {
+      localStorage.removeItem('lexiflow_v4_stats');
+      localStorage.removeItem('lexiflow_vocab_progress_v2');
+      localStorage.removeItem('lexiflow_v4_notes');
+      localStorage.removeItem('lexiflow_v4_scratchpad');
+    } catch {}
+    showToast('👋 Đã đăng xuất tài khoản. Bạn đang ở chế độ xem học viên mới.');
   };
 
   // Note Drawer state (default 'minimized' so it NEVER blocks the main screen)
@@ -271,21 +335,33 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('lexiflow_v4_notes', JSON.stringify(studyNotes));
+      if (currentUser) {
+        localStorage.setItem('lexiflow_v4_notes', JSON.stringify(studyNotes));
+      } else {
+        localStorage.removeItem('lexiflow_v4_notes');
+      }
     } catch {}
-  }, [studyNotes]);
+  }, [studyNotes, currentUser]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('lexiflow_v4_scratchpad', scratchpadText);
+      if (currentUser) {
+        localStorage.setItem('lexiflow_v4_scratchpad', scratchpadText);
+      } else {
+        localStorage.removeItem('lexiflow_v4_scratchpad');
+      }
     } catch {}
-  }, [scratchpadText]);
+  }, [scratchpadText, currentUser]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('lexiflow_v4_stats', JSON.stringify(userStats));
+      if (currentUser) {
+        localStorage.setItem('lexiflow_v4_stats', JSON.stringify(userStats));
+      } else {
+        localStorage.removeItem('lexiflow_v4_stats');
+      }
     } catch {}
-  }, [userStats]);
+  }, [userStats, currentUser]);
 
   // Toast Notification Trigger
   const showToast = (message) => {
@@ -574,7 +650,7 @@ export default function App() {
   }, [vocabCourses, activePracticeDeck]);
 
   return (
-    <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col md:flex-row font-sans selection:bg-indigo-500 selection:text-white antialiased">
+    <div className="h-screen w-screen overflow-hidden bg-[#0B0F17] text-slate-100 flex flex-col md:flex-row font-sans selection:bg-indigo-500 selection:text-white antialiased">
       {/* TOAST NOTIFICATION */}
       {toast && (
         <div className="fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-indigo-950/95 border border-indigo-400/50 text-xs font-bold text-white shadow-2xl backdrop-blur-md animate-bounce">
@@ -596,10 +672,12 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setIsSidebarCollapsed}
       />
 
       {/* MAIN CONTENT VIEWPORT */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* TOPBAR */}
         <Topbar
           globalSearch={globalSearch}
@@ -617,10 +695,12 @@ export default function App() {
           onResetCurriculum={handleResetCurriculum}
           onNavigateTab={handleNavigateTab}
           onSpeak={speakText}
+          isSidebarCollapsed={isSidebarCollapsed}
+          setIsSidebarCollapsed={setIsSidebarCollapsed}
         />
 
         {/* MAIN SCROLLABLE VIEW AREA */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-7 pb-24">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 pt-6 md:pt-8 pb-24">
           {activeDeckObject ? (
             <StudySessionModal
               deck={activeDeckObject}
@@ -651,6 +731,7 @@ export default function App() {
               {activeTab === 'dashboard' && (
                 <RoadmapView
                   userStats={userStats}
+                  currentUser={currentUser}
                   vocabCourses={vocabCourses}
                   grammarCourses={grammarCourses}
                   roadmapStages={INITIAL_ROADMAP_STAGES}
@@ -695,6 +776,7 @@ export default function App() {
                   onSpeak={speakText}
                   onPinNote={pinToStudyNote}
                   onAwardXP={awardXP}
+                  vocabCourses={vocabCourses}
                 />
               )}
 

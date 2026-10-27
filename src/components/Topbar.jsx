@@ -11,7 +11,9 @@ import {
   Volume2,
   ExternalLink,
   LogIn,
-  LogOut
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 export default function Topbar({
@@ -29,7 +31,9 @@ export default function Topbar({
   onShowToast,
   onResetCurriculum,
   onNavigateTab,
-  onSpeak
+  onSpeak,
+  isSidebarCollapsed,
+  setIsSidebarCollapsed
 }) {
   // Real-time Global Search indexing
   const searchResults = useMemo(() => {
@@ -99,9 +103,24 @@ export default function Topbar({
 
   return (
     <header className="h-16 bg-[#0B0F17]/95 backdrop-blur-md border-b border-slate-800/80 px-4 md:px-7 flex items-center justify-between gap-3 sticky top-0 z-40">
-      {/* Search Input Container with Instant Dropdown */}
-      <div className="relative flex-1 max-w-md">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      {/* Search Input Container with Instant Dropdown & Sidebar Toggle */}
+      <div className="flex items-center gap-2.5 flex-1 max-w-md">
+        {setIsSidebarCollapsed && (
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="p-2 rounded-xl bg-[#131B2E] hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition shrink-0"
+            title={isSidebarCollapsed ? "Mở rộng thanh menu (Ctrl+B)" : "Thu gọn thanh menu (Ctrl+B)"}
+          >
+            {isSidebarCollapsed ? (
+              <PanelLeftOpen className="w-4 h-4 text-indigo-400" />
+            ) : (
+              <PanelLeftClose className="w-4 h-4" />
+            )}
+          </button>
+        )}
+
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           value={globalSearch}
@@ -243,6 +262,7 @@ export default function Topbar({
           </div>
         )}
       </div>
+      </div>
 
       {/* Right Controls */}
       <div className="flex items-center gap-2">
@@ -276,21 +296,13 @@ export default function Topbar({
           <span>{userStats?.accent === 'en-US' ? 'US 🇺🇸' : 'UK 🇬🇧'}</span>
         </button>
 
-        {/* Version & Reset */}
-        <button
-          onClick={onResetCurriculum}
-          className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-xs font-semibold text-emerald-300 transition"
-          title="Làm mới bộ học liệu 6 khóa từ vựng & 3 lộ trình ngữ pháp"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Dữ liệu v4.0</span>
-        </button>
-
-        {/* Level / XP */}
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-xs font-bold text-indigo-300">
-          <Award className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Cấp {userStats?.level || 10} • {(userStats?.xp || 2450).toLocaleString()} XP</span>
-        </div>
+        {/* Level / XP (Only show real progress when user is logged in) */}
+        {currentUser && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-xs font-bold text-indigo-300">
+            <Award className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Cấp {currentUser.level || userStats?.level || 1} • {Number(currentUser.xp ?? userStats?.xp ?? 0).toLocaleString()} XP</span>
+          </div>
+        )}
 
         {/* Auth CTA / User Profile Chip */}
         {currentUser ? (

@@ -21,9 +21,9 @@ export const INITIAL_VOCAB_COURSES = [
         "totalWords": 50,
         "masteredCount": 0,
         "learningCount": 0,
-        "dueCount": 50,
+        "dueCount": 0,
         "progressPercent": 0,
-        "lastStudied": "Hôm qua",
+        "lastStudied": null,
         "cards": [
           {
             "id": "c1-s1-w1",
@@ -46,7 +46,7 @@ export const INITIAL_VOCAB_COURSES = [
               "study",
               "goals"
             ],
-            "status": "due",
+            "status": "new",
             "intervalDays": 0,
             "reviewCount": 0,
             "lastReviewed": null

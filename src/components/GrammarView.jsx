@@ -493,7 +493,7 @@ export default function GrammarView({
               </h1>
             </div>
             <p className="text-xs text-slate-400">
-              Hệ thống 3 khóa học chuẩn hóa kèm Video YouTube, 4 Card tư duy sâu và 15 bài tập thực hành mỗi chuyên đề.
+              Làm chủ ngữ pháp từ câu đơn, 12 thì đến cấu trúc nâng cao qua giải thích trực quan và bài tập phản xạ ứng dụng.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs text-indigo-300 font-semibold px-3 py-1.5 rounded-xl bg-[#0B0F17] border border-slate-800">
@@ -501,7 +501,7 @@ export default function GrammarView({
             <span>•</span>
             <span>49 Chuyên Đề</span>
             <span>•</span>
-            <span className="text-emerald-400 font-bold">Video & Bẫy Đề Thi</span>
+            <span className="text-emerald-400 font-bold">Bài tập phản xạ</span>
           </div>
         </div>
 
@@ -716,7 +716,7 @@ export default function GrammarView({
             }`}
           >
             <Video className="w-4 h-4 text-red-400" />
-            <span>Tab 1: 🎬 Trình Chiếu Bài Giảng & Video</span>
+            <span>Tab 1: Trình Chiếu Bài Giảng & Video</span>
           </button>
 
           <button
@@ -728,7 +728,7 @@ export default function GrammarView({
             }`}
           >
             <Lightbulb className="w-4 h-4 text-amber-400" />
-            <span>Tab 2: 📖 Kiến Thức & Mẹo 3 Giây</span>
+            <span>Tab 2: Kiến Thức & Mẹo 3 Giây</span>
           </button>
 
           <button
@@ -740,7 +740,7 @@ export default function GrammarView({
             }`}
           >
             <Sparkles className="w-4 h-4 text-indigo-300" />
-            <span>Tab 3: ✍️ Thực Hành 15 Bài Tập</span>
+            <span>Tab 3: Thực Hành 15 Bài Tập</span>
           </button>
         </div>
 
@@ -1806,18 +1806,18 @@ export default function GrammarView({
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleHintBuilder(originalIndex, item.words)}
-                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1 transition"
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition"
                           >
                             <Lightbulb className="w-3.5 h-3.5" />
-                            <span>💡 Gợi ý từ</span>
+                            <span>Gợi ý từ</span>
                           </button>
 
                           <button
                             onClick={() => handleResetBuilder(originalIndex)}
-                            className="px-3 py-1.5 rounded-xl bg-[#0B0F17] hover:bg-slate-800 border border-slate-800 text-slate-400 text-xs font-semibold flex items-center gap-1 transition"
+                            className="px-3 py-1.5 rounded-xl bg-[#0B0F17] hover:bg-slate-800 border border-slate-800 text-slate-400 text-xs font-semibold flex items-center gap-1.5 transition"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
-                            <span>🔄 Xếp lại</span>
+                            <span>Xếp lại</span>
                           </button>
                         </div>
 

@@ -64,10 +64,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
   const [copiedEnv, setCopiedEnv] = useState(false);
 
   // Check if real Google Client ID is configured
-  const rawClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+  const rawClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').replace(/['"]/g, '').trim();
   const isGoogleConfigured = Boolean(
     rawClientId &&
-    rawClientId.trim() !== '' &&
+    rawClientId.endsWith('.apps.googleusercontent.com') &&
     !rawClientId.includes('your-google-client-id') &&
     !rawClientId.includes('placeholder')
   );
@@ -135,17 +135,40 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
 
   if (!isOpen) return null;
 
-  // Password strength calculation
+  // Strict & Robust Password Strength Calculation
   const getPasswordStrength = (pass) => {
-    if (!pass) return { score: 0, text: '', color: '' };
-    let score = 0;
-    if (pass.length >= 6) score += 1;
-    if (pass.length >= 8 && /[0-9]/.test(pass)) score += 1;
-    if (/[A-Z]/.test(pass) && /[^A-Za-z0-9]/.test(pass)) score += 1;
+    if (!pass || pass.length === 0) {
+      return { score: 0, text: '', color: '', barColor: 'bg-slate-800' };
+    }
+    if (pass.length < 6) {
+      return {
+        score: 1,
+        text: 'Quá ngắn (tối thiểu 6 ký tự)',
+        color: 'text-rose-400',
+        barColor: 'bg-rose-500'
+      };
+    }
 
-    if (score === 1) return { score: 1, text: 'Mật khẩu yếu', color: 'bg-rose-500 text-rose-400' };
-    if (score === 2) return { score: 2, text: 'Mật khẩu trung bình', color: 'bg-amber-500 text-amber-400' };
-    return { score: 3, text: 'Mật khẩu mạnh', color: 'bg-emerald-500 text-emerald-400' };
+    const hasLetter = /[a-zA-Z]/.test(pass);
+    const hasNumber = /[0-9]/.test(pass);
+    const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
+    const isDiverse = (hasLetter && hasNumber) || (hasLetter && hasSpecial) || (hasNumber && hasSpecial);
+
+    if (pass.length >= 8 && isDiverse) {
+      return {
+        score: 3,
+        text: 'Mật khẩu mạnh',
+        color: 'text-emerald-400',
+        barColor: 'bg-emerald-500'
+      };
+    }
+
+    return {
+      score: 2,
+      text: 'Mật khẩu trung bình',
+      color: 'text-amber-400',
+      barColor: 'bg-amber-500'
+    };
   };
 
   const pwdStrength = getPasswordStrength(password);
@@ -477,12 +500,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-extrabold text-xl text-white tracking-tight">LexiFlow</span>
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
-                    Studio v4.0
-                  </span>
                 </div>
                 <p className="text-xs text-slate-300 font-medium whitespace-normal mt-0.5 leading-snug">
-                  Trạm Luyện Tiếng Anh Cá Nhân
+                  Nền Tảng Luyện Tiếng Anh Thông Minh
                 </p>
               </div>
             </div>
@@ -537,7 +557,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
           {/* Genuine Security Badge Footer (No fake reviews) */}
           <div className="pt-4 border-t border-slate-800/70 flex items-center gap-2.5 relative z-10 text-xs text-slate-400">
             <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="leading-snug">Hệ thống bảo mật xác thực 2 lớp qua Email OTP & PostgreSQL</span>
+            <span className="leading-snug">Hệ thống bảo mật xác thực 2 lớp qua Email OTP</span>
           </div>
         </div>
 
@@ -706,8 +726,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
                     <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
                       Mật khẩu
                     </label>
-                    {password && (
-                      <span className={`text-[10px] font-semibold ${pwdStrength.color.split(' ')[1]}`}>
+                    {password && pwdStrength.text && (
+                      <span className={`text-[10px] font-semibold ${pwdStrength.color}`}>
                         {pwdStrength.text}
                       </span>
                     )}
@@ -732,14 +752,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
                     </button>
                   </div>
 
-                  {/* Thanh đo độ mạnh mật khẩu */}
-                  {password && (
-                    <div className="flex gap-1.5 mt-1.5">
-                      <div className={`h-1 flex-1 rounded-full transition-all ${pwdStrength.score >= 1 ? 'bg-rose-500' : 'bg-slate-800'}`} />
-                      <div className={`h-1 flex-1 rounded-full transition-all ${pwdStrength.score >= 2 ? 'bg-amber-500' : 'bg-slate-800'}`} />
-                      <div className={`h-1 flex-1 rounded-full transition-all ${pwdStrength.score >= 3 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
-                    </div>
-                  )}
+                  {/* Thanh đo độ mạnh mật khẩu chuẩn */}
+                  <div className="flex gap-1.5 mt-1.5">
+                    <div className={`h-1 flex-1 rounded-full transition-all ${!password ? 'bg-slate-800' : pwdStrength.score === 1 ? 'bg-rose-500' : pwdStrength.score === 2 ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                    <div className={`h-1 flex-1 rounded-full transition-all ${!password ? 'bg-slate-800' : pwdStrength.score >= 2 ? (pwdStrength.score === 2 ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-slate-800'}`} />
+                    <div className={`h-1 flex-1 rounded-full transition-all ${!password ? 'bg-slate-800' : pwdStrength.score >= 3 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
+                  </div>
                 </div>
 
                 {/* Xác nhận mật khẩu */}

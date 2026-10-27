@@ -22,6 +22,12 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     letter-spacing: -0.02em;
   }
+
+  /* Hide default browser password reveal/clear buttons (Edge/IE/Chrome) */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
 }
 
 /* Custom sleek dark scrollbar */

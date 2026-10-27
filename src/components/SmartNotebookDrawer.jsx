@@ -14,7 +14,8 @@ import {
   Download,
   Upload,
   FileSpreadsheet,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 import { callGeminiAPI } from '../services/gemini';
 
@@ -295,81 +296,69 @@ export default function SmartNotebookDrawer({
     });
   }, [notes, filterTag, noteSearch]);
 
-  // 1. MINIMIZED PILL MODE (Subtle corner badge)
+  const availableTags = useMemo(() => {
+    const baseTags = ['Tất cả', 'Từ mới', 'Giao tiếp', 'Ngữ pháp', 'Đồ ăn', 'Hay nhầm'];
+    const customTags = notes
+      .map((n) => n.tag)
+      .filter((t) => t && !baseTags.includes(t));
+    return [...baseTags, ...Array.from(new Set(customTags))];
+  }, [notes]);
+
+  // 1. MINIMIZED MODE: Render nothing in the corner (opens from Topbar button)
   if (mode === 'minimized') {
-    return (
-      <div className="fixed bottom-5 right-5 z-40">
-        <button
-          onClick={() => setMode('open')}
-          className="group flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-[#131B2E] hover:bg-slate-800 text-amber-300 font-bold text-xs shadow-xl border border-amber-500/30 transition transform hover:scale-105"
-          title="Mở Sổ Tay Ghi Chú Học Tập"
-        >
-          <StickyNote className="w-4 h-4 text-amber-400" />
-          <span className="hidden sm:inline">Sổ tay</span>
-          <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold">
-            {notes.length}
-          </span>
-        </button>
-      </div>
-    );
+    return null;
   }
 
-  // 2. OPEN OR EXPANDED CORNER WIDGET
-  const isExpanded = mode === 'expanded';
-
   return (
-    <div
-      className={`fixed bottom-5 right-4 md:right-6 z-50 transition-all duration-300 flex flex-col rounded-3xl bg-[#131B2E] border border-amber-500/30 shadow-2xl overflow-hidden ${
-        isExpanded
-          ? 'w-[94vw] md:w-[600px] h-[82vh]'
-          : 'w-[92vw] sm:w-[410px] max-h-[580px]'
-      }`}
-    >
-      {/* Hidden File Input for Import */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept=".json,.csv"
-        className="hidden"
+    <>
+      {/* Light Backdrop with subtle blur */}
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 transition-opacity animate-in fade-in"
+        onClick={() => setMode('minimized')}
       />
 
-      {/* Top Header of Note Widget */}
-      <div className="px-4 py-3 bg-gradient-to-r from-amber-500/20 via-indigo-950/80 to-slate-900 border-b border-slate-800 flex items-center justify-between select-none">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
-            <StickyNote className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5">
-              <span>Sổ Tay Ghi Chú Học Tập</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-extrabold">
-                {notes.length}
-              </span>
-            </h3>
-            <p className="text-[10px] text-slate-400">
-              Xuất / Nhập Anki • Lưu tự động không lo mất
-            </p>
-          </div>
-        </div>
+      {/* Slide-over Drawer from Right Edge */}
+      <aside
+        className="fixed top-0 right-0 h-full w-full sm:w-[440px] md:w-[480px] bg-[#0E1424] border-l border-slate-800 shadow-2xl z-50 flex flex-col transition-all duration-300 animate-in slide-in-from-right"
+      >
+        {/* Hidden File Input for Import */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".json,.csv"
+          className="hidden"
+        />
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setMode(isExpanded ? 'open' : 'expanded')}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition"
-            title={isExpanded ? 'Thu vừa' : 'Phóng to sổ tay'}
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setMode('minimized')}
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-amber-300 hover:text-amber-200 transition"
-            title="Thu nhỏ xuống góc màn hình"
-          >
-            <Minimize2 className="w-3.5 h-3.5" />
-          </button>
+        {/* Top Header of Drawer */}
+        <div className="px-5 py-3.5 bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 border-b border-slate-800 flex items-center justify-between select-none shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-300">
+              <StickyNote className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
+                <span>Sổ Tay Ghi Chú</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold border border-amber-500/30">
+                  {notes.length} thẻ
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Xuất Anki & Đồng bộ tự động
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setMode('minimized')}
+              className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition"
+              title="Đóng Sổ tay"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-      </div>
 
       {/* Mode Switcher: Pinned Vocab vs Free Scratchpad */}
       <div className="grid grid-cols-2 bg-slate-950/80 p-1 border-b border-slate-800 text-[11px] font-bold">
@@ -509,30 +498,47 @@ export default function SmartNotebookDrawer({
             </form>
           )}
 
-          {/* Search & Tag Filter within Notes */}
-          <div className="p-2.5 bg-slate-950/70 border-b border-slate-800 flex items-center justify-between gap-2">
-            <div className="relative flex-1">
-              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          {/* Search & Category Filter Chips */}
+          <div className="p-3 bg-slate-950/70 border-b border-slate-800 space-y-2.5 shrink-0">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={noteSearch}
                 onChange={(e) => setNoteSearch(e.target.value)}
                 placeholder="Tìm trong ghi chú..."
-                className="w-full pl-8 pr-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-white placeholder-slate-500 focus:outline-none"
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
               />
             </div>
 
-            <select
-              value={filterTag}
-              onChange={(e) => setFilterTag(e.target.value)}
-              className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[10px] text-slate-300"
-            >
-              <option value="Tất cả">Tất cả nhãn</option>
-              <option value="Từ mới">Từ mới</option>
-              <option value="Mẹo ngữ pháp">Mẹo ngữ pháp</option>
-              <option value="Cấu trúc câu">Cấu trúc câu</option>
-              <option value="Hay nhầm">Hay nhầm</option>
-            </select>
+            {/* Category Filter Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+              {availableTags.map((t) => {
+                const count = t === 'Tất cả' ? notes.length : notes.filter((n) => n.tag === t).length;
+                const isActive = filterTag === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setFilterTag(t)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition flex items-center gap-1.5 shrink-0 ${
+                      isActive
+                        ? 'bg-amber-500 text-slate-950 shadow-sm'
+                        : 'bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800'
+                    }`}
+                  >
+                    <span>{t}</span>
+                    <span
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                        isActive ? 'bg-black/20 text-slate-950' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Notes Scrollable List */}
@@ -560,7 +566,7 @@ export default function SmartNotebookDrawer({
                         )}
                       </div>
                       {n.phonetic && (
-                        <p className="text-[10px] font-mono text-indigo-300 mt-0.5">
+                        <p className="text-[11px] font-sans text-indigo-300 mt-0.5">
                           {n.phonetic}
                         </p>
                       )}
@@ -600,8 +606,8 @@ export default function SmartNotebookDrawer({
                   </p>
 
                   {n.example && (
-                    <div className="text-[11px] text-amber-200/90 font-mono bg-slate-950/70 p-2 rounded-xl border border-slate-800/80">
-                      💬 {n.example}
+                    <div className="text-xs text-amber-100/90 font-sans bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed italic">
+                      💬 "{n.example}"
                     </div>
                   )}
                 </div>
@@ -620,10 +626,11 @@ export default function SmartNotebookDrawer({
             value={scratchpad}
             onChange={(e) => setScratchpad(e.target.value)}
             placeholder="Viết bất cứ điều gì vào đây (mục tiêu tuần, câu tâm đắc, từ vựng vừa nghe trên Youtube...)"
-            className="flex-1 w-full p-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 font-mono resize-none leading-relaxed"
+            className="flex-1 w-full p-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500 font-sans resize-none leading-relaxed"
           />
         </div>
       )}
-    </div>
+      </aside>
+    </>
   );
 }

@@ -13,6 +13,8 @@ const serverEnvPath = path.resolve(rootDir, 'server', '.env');
  * Synchronize environment variables between root .env and server/.env
  */
 export function syncEnv() {
+  if (process.env.VERCEL) return;
+
   let rootContent = fs.existsSync(rootEnvPath) ? fs.readFileSync(rootEnvPath, 'utf-8') : '';
   let serverContent = fs.existsSync(serverEnvPath) ? fs.readFileSync(serverEnvPath, 'utf-8') : '';
 

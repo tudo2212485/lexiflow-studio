@@ -15,10 +15,12 @@ import {
   EyeOff,
   Filter,
   Clock,
-  RotateCcw
+  RotateCcw,
+  Trophy
 } from 'lucide-react';
 import QuickRecallModal from './QuickRecallModal';
 import DictationModal from './DictationModal';
+import TopicReviewModal from './TopicReviewModal';
 
 // Topic icons mapping
 export const SUBDECK_ICONS = {
@@ -586,6 +588,37 @@ export default function VocabVault({
             )}
           </div>
 
+          {/* Card / Nút lớn Tổng Ôn Tập Cả Chủ Đề (50 Từ) */}
+          <div className="pt-2">
+            <button
+              onClick={() => setActiveModal('topic_review')}
+              className="w-full p-4 rounded-2xl bg-gradient-to-r from-amber-600/30 via-indigo-600/30 to-purple-600/30 hover:from-amber-600/40 hover:via-indigo-600/40 hover:to-purple-600/40 border-2 border-amber-500/50 text-white flex items-center justify-between shadow-xl shadow-amber-500/10 transition transform hover:-translate-y-0.5 group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 text-xl shadow-inner group-hover:scale-110 transition shrink-0">
+                  <Trophy className="w-6 h-6 text-amber-400" />
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-sm sm:text-base text-amber-300 tracking-tight">
+                      🏆 Tổng Ôn Tập Cả Chủ Đề ({currentMetrics.total} Từ)
+                    </span>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      Final Test
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300 font-normal mt-0.5">
+                    3 Vòng liên hoàn: Ghép cặp siêu tốc ➔ Điền câu ngữ cảnh ➔ Nghe gõ chính tả (Thưởng +150 XP & Huy hiệu)
+                  </p>
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shrink-0 shadow-lg transition">
+                <span>Vào Tổng Ôn</span>
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </button>
+          </div>
+
           {/* 4 Secondary Action Buttons */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-2">
             {/* Mode: Review due / learning */}
@@ -774,6 +807,26 @@ export default function VocabVault({
           onSpeak={onSpeak}
           onAwardXP={onAwardXP}
           onUpdateCardSRS={onUpdateCardSRS}
+        />
+
+        <TopicReviewModal
+          isOpen={activeModal === 'topic_review'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          onSpeak={onSpeak}
+          onAwardXP={onAwardXP}
+          onUpdateCardSRS={onUpdateCardSRS}
+          onStartPracticeWrongWords={(failedCards) => {
+            setActiveModal(null);
+            onStartFourStep(
+              {
+                ...currentSubdeck,
+                title: `${currentSubdeck.title} (Ôn ${failedCards.length} từ sai)`,
+                cards: failedCards
+              },
+              { mode: 'practice_all' }
+            );
+          }}
         />
       </div>
     );

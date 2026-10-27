@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDatabase, pool } from './db.js';
+import { initDatabase, ensureDbInitialized, pool } from './db.js';
 import { syncEnv } from '../scripts/syncEnv.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
@@ -11,18 +11,24 @@ import userRoutes from './routes/user.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Sync and Load env
-syncEnv();
-dotenv.config({ path: path.resolve(__dirname, '.env') });
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+// Sync and Load env (Only on local machine, Vercel provides environment variables via dashboard)
+if (!process.env.VERCEL) {
+  try {
+    syncEnv();
+  } catch (err) {
+    console.warn('[SyncEnv Notice]:', err.message);
+  }
+  dotenv.config({ path: path.resolve(__dirname, '.env') });
+  dotenv.config({ path: path.resolve(__dirname, '../.env') });
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS for frontend clients
+// Enable CORS for all environments (Vercel domains, preview URLs, and local dev)
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -33,8 +39,18 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check endpoint
-app.get('/api/health', async (req, res) => {
+// Middleware to ensure DB tables are ready on serverless cold starts
+app.use(async (req, res, next) => {
+  try {
+    await ensureDbInitialized();
+  } catch (err) {
+    console.warn('[Database Notice]: Initializing DB in background -', err.message);
+  }
+  next();
+});
+
+// Health check endpoint handler
+const healthHandler = async (req, res) => {
   try {
     const dbRes = await pool.query('SELECT NOW() as current_time, current_database() as database');
     return res.json({
@@ -42,6 +58,7 @@ app.get('/api/health', async (req, res) => {
       service: 'LexiFlow Studio Backend API',
       timestamp: dbRes.rows[0].current_time,
       database: dbRes.rows[0].database,
+      environment: process.env.VERCEL ? 'vercel-serverless' : 'local-node',
       version: '4.0.0'
     });
   } catch (err) {
@@ -50,11 +67,17 @@ app.get('/api/health', async (req, res) => {
       message: 'Lỗi kết nối cơ sở dữ liệu: ' + err.message
     });
   }
-});
+};
 
-// Mount Routes
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
+
+// Mount Routes (supporting both /api/* and direct path for Vercel rewrites)
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/user', userRoutes);
+app.use('/user', userRoutes);
 
 // 404 handler for API routes
 app.use('/api', (req, res) => {
@@ -74,7 +97,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start Server and Initialize PostgreSQL
+// Start Server and Initialize PostgreSQL locally (Skip on Vercel Serverless environment)
 async function startServer() {
   try {
     console.log('🚀 Đang khởi động LexiFlow Studio Backend Server...');
@@ -98,4 +121,8 @@ async function startServer() {
   }
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
