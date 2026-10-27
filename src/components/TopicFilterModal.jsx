@@ -19,9 +19,7 @@ export default function TopicFilterModal({
   onStartFilteredStudy,
   initialMode = 'mix' // 'mix' | 'filter'
 }) {
-  if (!isOpen || !subdeck) return null;
-
-  const cards = useMemo(() => subdeck.cards || [], [subdeck]);
+  const cards = useMemo(() => subdeck?.cards || [], [subdeck]);
 
   // Filter Selection
   const [scope, setScope] = useState('all'); // 'all' | 'unlearned' | 'starred'
@@ -33,7 +31,8 @@ export default function TopicFilterModal({
   }, [cards]);
 
   const starredCards = useMemo(() => {
-    return cards.filter((c) => starredCardIds.includes(c.id));
+    const starList = Array.isArray(starredCardIds) ? starredCardIds : [];
+    return cards.filter((c) => starList.includes(c.id));
   }, [cards, starredCardIds]);
 
   const filteredCards = useMemo(() => {
@@ -55,8 +54,8 @@ export default function TopicFilterModal({
     onClose();
     if (onStartFilteredStudy) {
       onStartFilteredStudy({
-        ...subdeck,
-        title: `${subdeck.title} (${
+        ...(subdeck || {}),
+        title: `${subdeck?.title || 'Từ vựng'} (${
           scope === 'unlearned'
             ? 'Từ chưa thuộc'
             : scope === 'starred'
@@ -67,6 +66,8 @@ export default function TopicFilterModal({
       });
     }
   };
+
+  if (!isOpen || !subdeck) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
@@ -82,7 +83,7 @@ export default function TopicFilterModal({
                 {initialMode === 'mix' ? '⚡ Chế Độ Kết Hợp 4 Bước (Smart Mix)' : '⭐ Bộ Lọc & Quản Lý Từ Vựng'}
               </h2>
               <p className="text-[11px] text-slate-400">
-                Chủ đề: <strong className="text-amber-300">{subdeck.title}</strong>
+                Chủ đề: <strong className="text-amber-300">{subdeck?.title || ''}</strong>
               </p>
             </div>
           </div>

@@ -191,7 +191,8 @@ export default function VocabVault({
   const [starredCardIds, setStarredCardIds] = useState(() => {
     try {
       const raw = localStorage.getItem('lexiflow_starred_words');
-      return raw ? JSON.parse(raw) : [];
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -199,8 +200,9 @@ export default function VocabVault({
 
   const handleToggleStar = (cardId) => {
     setStarredCardIds((prev) => {
-      const exists = prev.includes(cardId);
-      const updated = exists ? prev.filter((id) => id !== cardId) : [...prev, cardId];
+      const currentList = Array.isArray(prev) ? prev : [];
+      const exists = currentList.includes(cardId);
+      const updated = exists ? currentList.filter((id) => id !== cardId) : [...currentList, cardId];
       try {
         localStorage.setItem('lexiflow_starred_words', JSON.stringify(updated));
       } catch {}
@@ -880,133 +882,155 @@ export default function VocabVault({
         </div>
 
         {/* Modals for Quiz / Dictation inside Sub-deck */}
-        <QuickRecallModal
-          isOpen={activeModal === 'quiz'}
-          onClose={() => setActiveModal(null)}
-          cards={currentSubdeck?.cards || []}
-          onSpeak={onSpeak}
-          onAwardXP={onAwardXP}
-          onUpdateCardSRS={onUpdateCardSRS}
-        />
+        {activeModal === 'quiz' && (
+          <QuickRecallModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            cards={currentSubdeck?.cards || []}
+            onSpeak={onSpeak}
+            onAwardXP={onAwardXP}
+            onUpdateCardSRS={onUpdateCardSRS}
+          />
+        )}
 
-        <DictationModal
-          isOpen={activeModal === 'dictation'}
-          onClose={() => setActiveModal(null)}
-          cards={currentSubdeck?.cards || []}
-          onSpeak={onSpeak}
-          onAwardXP={onAwardXP}
-          onUpdateCardSRS={onUpdateCardSRS}
-        />
+        {activeModal === 'dictation' && (
+          <DictationModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            cards={currentSubdeck?.cards || []}
+            onSpeak={onSpeak}
+            onAwardXP={onAwardXP}
+            onUpdateCardSRS={onUpdateCardSRS}
+          />
+        )}
 
-        <TopicReviewModal
-          isOpen={activeModal === 'topic_review'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          onSpeak={onSpeak}
-          onAwardXP={onAwardXP}
-          onUpdateCardSRS={onUpdateCardSRS}
-          onStartPracticeWrongWords={(failedCards) => {
-            setActiveModal(null);
-            onStartFourStep(
-              {
-                ...currentSubdeck,
-                title: `${currentSubdeck.title} (Ôn ${failedCards.length} từ sai)`,
-                cards: failedCards
-              },
-              { mode: 'practice_all' }
-            );
-          }}
-        />
+        {activeModal === 'topic_review' && (
+          <TopicReviewModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            onSpeak={onSpeak}
+            onAwardXP={onAwardXP}
+            onUpdateCardSRS={onUpdateCardSRS}
+            onStartPracticeWrongWords={(failedCards) => {
+              setActiveModal(null);
+              onStartFourStep(
+                {
+                  ...(currentSubdeck || {}),
+                  title: `${currentSubdeck?.title || 'Chủ đề'} (Ôn ${(failedCards || []).length} từ sai)`,
+                  cards: failedCards || []
+                },
+                { mode: 'practice_all' }
+              );
+            }}
+          />
+        )}
 
         {/* Modal: Contextual AI Voice Call */}
-        <AICallModal
-          isOpen={activeModal === 'ai_call'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          starredCardIds={starredCardIds}
-          onSpeak={onSpeak}
-          onAwardXP={onAwardXP}
-          onUpdateCardSRS={onUpdateCardSRS}
-        />
+        {activeModal === 'ai_call' && (
+          <AICallModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            starredCardIds={starredCardIds}
+            onSpeak={onSpeak}
+            onAwardXP={onAwardXP}
+            onUpdateCardSRS={onUpdateCardSRS}
+          />
+        )}
 
         {/* Modal: Game Launcher (Choose Test / Game) */}
-        <GameLauncherModal
-          isOpen={activeModal === 'game_launcher'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          onLaunchTopicReview={() => setActiveModal('topic_review')}
-          onLaunchGateCrasher={() => setActiveModal('gate_crasher')}
-          onLaunchLexiPuzzle={() => setActiveModal('lexi_puzzle')}
-        />
+        {activeModal === 'game_launcher' && (
+          <GameLauncherModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            onLaunchTopicReview={() => setActiveModal('topic_review')}
+            onLaunchGateCrasher={() => setActiveModal('gate_crasher')}
+            onLaunchLexiPuzzle={() => setActiveModal('lexi_puzzle')}
+          />
+        )}
 
         {/* Modal: Game 1 - Gate Crasher Runner */}
-        <GateCrasherGame
-          isOpen={activeModal === 'gate_crasher'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          onSpeak={onSpeak}
-          onAwardXP={onAwardXP}
-          onStartReviewWrong={(failedCards) => {
-            setActiveModal(null);
-            onStartFourStep(
-              {
-                ...currentSubdeck,
-                title: `${currentSubdeck.title} (Ôn ${failedCards.length} từ sai Game 1)`,
-                cards: failedCards
-              },
-              { mode: 'practice_all' }
-            );
-          }}
-        />
+        {activeModal === 'gate_crasher' && (
+          <GateCrasherGame
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            onSpeak={onSpeak}
+            onAwardXP={onAwardXP}
+            onStartReviewWrong={(failedCards) => {
+              setActiveModal(null);
+              onStartFourStep(
+                {
+                  ...(currentSubdeck || {}),
+                  title: `${currentSubdeck?.title || 'Chủ đề'} (Ôn ${(failedCards || []).length} từ sai Game 1)`,
+                  cards: failedCards || []
+                },
+                { mode: 'practice_all' }
+              );
+            }}
+          />
+        )}
 
         {/* Modal: Game 2 - Lexi Puzzle & Neural Link */}
-        <LexiPuzzleGame
-          isOpen={activeModal === 'lexi_puzzle'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          onSpeak={onSpeak}
-          onAwardXP={onAwardXP}
-          onUpdateCardSRS={onUpdateCardSRS}
-        />
+        {activeModal === 'lexi_puzzle' && (
+          <LexiPuzzleGame
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            onSpeak={onSpeak}
+            onAwardXP={onAwardXP}
+            onUpdateCardSRS={onUpdateCardSRS}
+          />
+        )}
 
         {/* Modal: Interactive Story (Reading Comprehension) */}
-        <InteractiveStoryModal
-          isOpen={activeModal === 'story'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          onSpeak={onSpeak}
-          onAwardXP={onAwardXP}
-        />
+        {activeModal === 'story' && (
+          <InteractiveStoryModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            onSpeak={onSpeak}
+            onAwardXP={onAwardXP}
+          />
+        )}
 
         {/* Modal: Topic Grammar & Collocations */}
-        <TopicGrammarModal
-          isOpen={activeModal === 'grammar'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          onSpeak={onSpeak}
-        />
+        {activeModal === 'grammar' && (
+          <TopicGrammarModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            onSpeak={onSpeak}
+          />
+        )}
 
         {/* Modal: Topic Speaking Trainer */}
-        <TopicSpeakingModal
-          isOpen={activeModal === 'topic_speaking'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          onSpeak={onSpeak}
-          onAwardXP={onAwardXP}
-        />
+        {activeModal === 'topic_speaking' && (
+          <TopicSpeakingModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            onSpeak={onSpeak}
+            onAwardXP={onAwardXP}
+          />
+        )}
 
         {/* Modal: Topic Filter & Smart Mix */}
-        <TopicFilterModal
-          isOpen={activeModal === 'topic_filter'}
-          onClose={() => setActiveModal(null)}
-          subdeck={currentSubdeck}
-          starredCardIds={starredCardIds}
-          initialMode={filterModalMode}
-          onToggleStar={handleToggleStar}
-          onStartFilteredStudy={(filteredSubdeck) => {
-            onStartFourStep(filteredSubdeck, { mode: 'practice_all' });
-          }}
-        />
+        {activeModal === 'topic_filter' && (
+          <TopicFilterModal
+            isOpen={true}
+            onClose={() => setActiveModal(null)}
+            subdeck={currentSubdeck}
+            starredCardIds={starredCardIds}
+            initialMode={filterModalMode}
+            onToggleStar={handleToggleStar}
+            onStartFilteredStudy={(filteredSubdeck) => {
+              onStartFourStep(filteredSubdeck, { mode: 'practice_all' });
+            }}
+          />
+        )}
       </div>
     );
   }

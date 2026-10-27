@@ -20,9 +20,7 @@ export default function TopicSpeakingModal({
   onSpeak,
   onAwardXP
 }) {
-  if (!isOpen || !subdeck) return null;
-
-  const cards = useMemo(() => subdeck.cards || [], [subdeck]);
+  const cards = useMemo(() => subdeck?.cards || [], [subdeck]);
   const [cardIndex, setCardIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [userTranscript, setUserTranscript] = useState('');
@@ -134,6 +132,8 @@ export default function TopicSpeakingModal({
       if (onAwardXP) onAwardXP(5, `Nỗ lực luyện phát âm từ "${currentCard.word}"`);
     }
   };
+
+  if (!isOpen || !subdeck) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Sparkles, Home, Layers, BookOpen, Headphones } from 'lucide-react';
 
 // Data imports
@@ -125,9 +125,16 @@ export function getStoredVocabProgress(userId) {
   try {
     const key = getUserProgressKey(userId);
     const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object') ? parsed : {};
+    }
     const legacy = localStorage.getItem('lexiflow_vocab_progress_v2');
-    return legacy ? JSON.parse(legacy) : {};
+    if (legacy) {
+      const parsedLegacy = JSON.parse(legacy);
+      return (parsedLegacy && typeof parsedLegacy === 'object') ? parsedLegacy : {};
+    }
+    return {};
   } catch {
     return {};
   }

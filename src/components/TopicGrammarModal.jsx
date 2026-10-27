@@ -16,9 +16,7 @@ export default function TopicGrammarModal({
   subdeck,
   onSpeak
 }) {
-  if (!isOpen || !subdeck) return null;
-
-  const cards = useMemo(() => subdeck.cards || [], [subdeck]);
+  const cards = useMemo(() => subdeck?.cards || [], [subdeck]);
 
   // Extract Collocations and Grammar Patterns from the topic cards
   const grammarData = useMemo(() => {
@@ -64,6 +62,8 @@ export default function TopicGrammarModal({
     return { collocations, patterns };
   }, [cards]);
 
+  if (!isOpen || !subdeck) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-2xl bg-[#0F172A] border border-sky-500/40 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
@@ -78,7 +78,7 @@ export default function TopicGrammarModal({
                 Ngữ Pháp & Collocations Cốt Lõi
               </h2>
               <p className="text-[11px] text-slate-400">
-                Tổng hợp từ 50 câu ví dụ của chủ đề: <strong className="text-sky-300">{subdeck.title}</strong>
+                Tổng hợp từ 50 câu ví dụ của chủ đề: <strong className="text-sky-300">{subdeck?.title || ''}</strong>
               </p>
             </div>
           </div>

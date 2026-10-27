@@ -27,8 +27,6 @@ export default function AICallModal({
   onAwardXP,
   onUpdateCardSRS
 }) {
-  if (!isOpen || !subdeck) return null;
-
   // Step 1: Pre-call Setup | Step 2: In-Call Room | Step 3: Call Summary
   const [callStage, setCallStage] = useState('setup'); // 'setup' | 'calling' | 'summary'
 
@@ -390,6 +388,8 @@ export default function AICallModal({
     const s = secs % 60;
     return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
+
+  if (!isOpen || !subdeck) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">

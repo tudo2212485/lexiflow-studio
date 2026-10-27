@@ -23,10 +23,8 @@ export default function LexiPuzzleGame({
   onAwardXP,
   onUpdateCardSRS
 }) {
-  if (!isOpen || !subdeck) return null;
-
   const [activeTab, setActiveTab] = useState('neural_link'); // 'neural_link' | 'cryptogram'
-  const cards = useMemo(() => subdeck.cards || [], [subdeck]);
+  const cards = useMemo(() => subdeck?.cards || [], [subdeck]);
 
   // =========================================================================
   // MODE 2A: NEURAL LINK MATCHING PUZZLE (12 CARDS: 6 EN WORDS + 6 VI MEANINGS)
@@ -287,6 +285,8 @@ export default function LexiPuzzleGame({
       );
     }
   };
+
+  if (!isOpen || !subdeck) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">

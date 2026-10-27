@@ -18,9 +18,7 @@ export default function InteractiveStoryModal({
   onSpeak,
   onAwardXP
 }) {
-  if (!isOpen || !subdeck) return null;
-
-  const cards = useMemo(() => subdeck.cards || [], [subdeck]);
+  const cards = useMemo(() => subdeck?.cards || [], [subdeck]);
   const [selectedWordObj, setSelectedWordObj] = useState(null);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -32,7 +30,7 @@ export default function InteractiveStoryModal({
 
   // Generate a rich contextual story embedding target words
   const storyData = useMemo(() => {
-    const title = `A Journey of Discovery: ${subdeck.title}`;
+    const title = `A Journey of Discovery: ${subdeck?.title || 'Vocabulary'}`;
     const wordList = targetWords.map((c) => c.word);
 
     // Build paragraphs with target words tagged
@@ -133,6 +131,8 @@ export default function InteractiveStoryModal({
       return <span key={idx}>{part}</span>;
     });
   };
+
+  if (!isOpen || !subdeck) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
