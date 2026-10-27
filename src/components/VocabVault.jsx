@@ -16,11 +16,21 @@ import {
   Filter,
   Clock,
   RotateCcw,
-  Trophy
+  Trophy,
+  Star
 } from 'lucide-react';
 import QuickRecallModal from './QuickRecallModal';
 import DictationModal from './DictationModal';
 import TopicReviewModal from './TopicReviewModal';
+import TopicActionGrid from './TopicActionGrid';
+import AICallModal from './AICallModal';
+import GateCrasherGame from './GateCrasherGame';
+import LexiPuzzleGame from './LexiPuzzleGame';
+import GameLauncherModal from './GameLauncherModal';
+import InteractiveStoryModal from './InteractiveStoryModal';
+import TopicGrammarModal from './TopicGrammarModal';
+import TopicSpeakingModal from './TopicSpeakingModal';
+import TopicFilterModal from './TopicFilterModal';
 
 // Topic icons mapping
 export const SUBDECK_ICONS = {
@@ -174,7 +184,29 @@ export default function VocabVault({
 
   // Sub-deck view toggles in Level 3
   const [showWordList, setShowWordList] = useState(false);
-  const [activeModal, setActiveModal] = useState(null); // 'quiz' | 'dictation'
+  const [activeModal, setActiveModal] = useState(null); // 'quiz' | 'dictation' | 'topic_review' | 'ai_call' | etc.
+  const [filterModalMode, setFilterModalMode] = useState('mix'); // 'mix' | 'filter'
+
+  // Starred / Bookmarked Cards (Persisted in localStorage)
+  const [starredCardIds, setStarredCardIds] = useState(() => {
+    try {
+      const raw = localStorage.getItem('lexiflow_starred_words');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleToggleStar = (cardId) => {
+    setStarredCardIds((prev) => {
+      const exists = prev.includes(cardId);
+      const updated = exists ? prev.filter((id) => id !== cardId) : [...prev, cardId];
+      try {
+        localStorage.setItem('lexiflow_starred_words', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
 
   // Current selected course object
   const currentCourse = useMemo(() => {
@@ -691,6 +723,32 @@ export default function VocabVault({
           </div>
         </div>
 
+        {/* ======================================================== */}
+        {/* 8-ACTION MULTI-MODE STUDY HUB GRID                       */}
+        {/* ======================================================== */}
+        <TopicActionGrid
+          subdeck={currentSubdeck}
+          starredCount={
+            starredCardIds.filter((id) =>
+              currentSubdeck.cards?.some((c) => c.id === id)
+            ).length
+          }
+          onOpenSmartMix={() => {
+            setFilterModalMode('mix');
+            setActiveModal('topic_filter');
+          }}
+          onOpenSpeaking={() => setActiveModal('topic_speaking')}
+          onOpenAICall={() => setActiveModal('ai_call')}
+          onOpenStory={() => setActiveModal('story')}
+          onOpenGrammar={() => setActiveModal('grammar')}
+          onOpenDictation={() => setActiveModal('dictation')}
+          onOpenGames={() => setActiveModal('game_launcher')}
+          onOpenFilter={() => {
+            setFilterModalMode('filter');
+            setActiveModal('topic_filter');
+          }}
+        />
+
         {/* Secondary: Collapsible Quick Reference Word List */}
         <div className="p-6 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md space-y-4">
           <div className="flex items-center justify-between">
@@ -768,6 +826,26 @@ export default function VocabVault({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          handleToggleStar(card.id);
+                        }}
+                        className="p-1.5 rounded-xl text-slate-500 hover:text-amber-400 hover:bg-slate-800 transition"
+                        title={
+                          starredCardIds.includes(card.id)
+                            ? 'Bỏ đánh dấu sao'
+                            : 'Gắn ngôi sao từ này'
+                        }
+                      >
+                        <Star
+                          className={`w-3.5 h-3.5 ${
+                            starredCardIds.includes(card.id)
+                              ? 'fill-amber-400 text-amber-400'
+                              : ''
+                          }`}
+                        />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (onPinNote) {
                             onPinNote({
                               term: card.word,
@@ -837,6 +915,96 @@ export default function VocabVault({
               },
               { mode: 'practice_all' }
             );
+          }}
+        />
+
+        {/* Modal: Contextual AI Voice Call */}
+        <AICallModal
+          isOpen={activeModal === 'ai_call'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          starredCardIds={starredCardIds}
+          onSpeak={onSpeak}
+          onAwardXP={onAwardXP}
+          onUpdateCardSRS={onUpdateCardSRS}
+        />
+
+        {/* Modal: Game Launcher (Choose Test / Game) */}
+        <GameLauncherModal
+          isOpen={activeModal === 'game_launcher'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          onLaunchTopicReview={() => setActiveModal('topic_review')}
+          onLaunchGateCrasher={() => setActiveModal('gate_crasher')}
+          onLaunchLexiPuzzle={() => setActiveModal('lexi_puzzle')}
+        />
+
+        {/* Modal: Game 1 - Gate Crasher Runner */}
+        <GateCrasherGame
+          isOpen={activeModal === 'gate_crasher'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          onSpeak={onSpeak}
+          onAwardXP={onAwardXP}
+          onStartReviewWrong={(failedCards) => {
+            setActiveModal(null);
+            onStartFourStep(
+              {
+                ...currentSubdeck,
+                title: `${currentSubdeck.title} (Ôn ${failedCards.length} từ sai Game 1)`,
+                cards: failedCards
+              },
+              { mode: 'practice_all' }
+            );
+          }}
+        />
+
+        {/* Modal: Game 2 - Lexi Puzzle & Neural Link */}
+        <LexiPuzzleGame
+          isOpen={activeModal === 'lexi_puzzle'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          onSpeak={onSpeak}
+          onAwardXP={onAwardXP}
+          onUpdateCardSRS={onUpdateCardSRS}
+        />
+
+        {/* Modal: Interactive Story (Reading Comprehension) */}
+        <InteractiveStoryModal
+          isOpen={activeModal === 'story'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          onSpeak={onSpeak}
+          onAwardXP={onAwardXP}
+        />
+
+        {/* Modal: Topic Grammar & Collocations */}
+        <TopicGrammarModal
+          isOpen={activeModal === 'grammar'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          onSpeak={onSpeak}
+        />
+
+        {/* Modal: Topic Speaking Trainer */}
+        <TopicSpeakingModal
+          isOpen={activeModal === 'topic_speaking'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          onSpeak={onSpeak}
+          onAwardXP={onAwardXP}
+        />
+
+        {/* Modal: Topic Filter & Smart Mix */}
+        <TopicFilterModal
+          isOpen={activeModal === 'topic_filter'}
+          onClose={() => setActiveModal(null)}
+          subdeck={currentSubdeck}
+          starredCardIds={starredCardIds}
+          initialMode={filterModalMode}
+          onToggleStar={handleToggleStar}
+          onStartFilteredStudy={(filteredSubdeck) => {
+            onStartFourStep(filteredSubdeck, { mode: 'practice_all' });
           }}
         />
       </div>
