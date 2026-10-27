@@ -598,8 +598,8 @@ export default function StudySessionModal({
             </div>
           </div>
 
-          {/* Right section: 4 Step Indicator Pills */}
-          <div className="flex items-center gap-1 bg-[#0B0F17] p-1.5 rounded-2xl border border-slate-800 shrink-0 overflow-x-auto">
+          {/* Right section: 4 Step Indicator Pills (Horizontally scrollable on mobile) */}
+          <div className="flex items-center gap-1 bg-[#0B0F17] p-1.5 rounded-2xl border border-slate-800 shrink-0 overflow-x-auto no-scrollbar w-full sm:w-auto">
             {[
               { s: 1, label: '1. Flashcard 3D' },
               { s: 2, label: '2. Phản xạ nghĩa' },
@@ -613,7 +613,7 @@ export default function StudySessionModal({
                     setStep(item.s);
                   }
                 }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
                   step === item.s
                     ? 'bg-indigo-600 text-white shadow-md'
                     : item.s < step
@@ -667,22 +667,23 @@ export default function StudySessionModal({
                 }`}
               >
                 {/* MẶT TRƯỚC (FRONT) */}
-                <div className="absolute inset-0 w-full h-full backface-hidden rounded-3xl bg-[#131B2E] border-2 border-indigo-500/30 p-6 sm:p-7 flex flex-col justify-between shadow-2xl">
+                <div className="absolute inset-0 w-full h-full backface-hidden rounded-3xl bg-[#131B2E] border-2 border-indigo-500/30 p-4 sm:p-7 flex flex-col justify-between shadow-2xl">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs uppercase font-extrabold tracking-wider px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                    <span className="text-[11px] sm:text-xs uppercase font-extrabold tracking-wider px-2.5 sm:px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
                       {currentCard.pos || 'Từ vựng'}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSkipMastered();
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 shadow-sm transition hover:scale-[1.02] active:scale-95"
+                        className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 shadow-sm transition hover:scale-[1.02] active:scale-95"
                         title="Đã biết rõ từ này rồi, bấm để đánh dấu Đã thuộc và chuyển ngay sang từ tiếp theo"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        <span>Đã biết từ này (Bỏ qua ngay)</span>
+                        <span className="hidden xs:inline">Đã biết</span>
+                        <span className="hidden sm:inline"> từ này (Bỏ qua)</span>
                       </button>
                       <button
                         onClick={(e) => {
@@ -697,7 +698,7 @@ export default function StudySessionModal({
                             });
                           }
                         }}
-                        className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-amber-400 transition"
+                        className="p-1.5 sm:p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-amber-400 transition"
                         title="Ghim vào sổ tay (phím S)"
                       >
                         <Pin className="w-4 h-4" />
@@ -706,25 +707,26 @@ export default function StudySessionModal({
                   </div>
 
                   {/* Word & Phonetic Center */}
-                  <div className="text-center space-y-3 py-4">
-                    <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+                  <div className="text-center space-y-2.5 sm:space-y-3 py-3 sm:py-4">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight break-words">
                       {currentCard.word}
                     </h1>
-                    <p className="text-sm font-mono text-indigo-400">
+                    <p className="text-xs sm:text-sm font-mono text-indigo-400">
                       {currentCard.syllables} • {currentCard.ipa}
                     </p>
 
                     {/* 2 Audio Buttons (1.0x and 0.75x) */}
-                    <div className="flex items-center justify-center gap-3 pt-2">
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1 sm:pt-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onSpeak) onSpeak(currentCard.word, 1.0);
                         }}
-                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-md transition"
+                        className="px-3.5 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow-md transition"
                       >
                         <Volume2 className="w-4 h-4" />
-                        <span>Nghe chuẩn 1.0x (Phím 1)</span>
+                        <span>Nghe 1.0x</span>
+                        <span className="hidden sm:inline">(Phím 1)</span>
                       </button>
 
                       <button
@@ -732,48 +734,49 @@ export default function StudySessionModal({
                           e.stopPropagation();
                           if (onSpeak) onSpeak(currentCard.word, 0.75);
                         }}
-                        className="px-3.5 py-2 rounded-xl bg-[#0B0F17] hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition"
+                        className="px-3 sm:px-3.5 py-2 rounded-xl bg-[#0B0F17] hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition"
                       >
-                        <span>🐢 Nghe chậm 0.75x (Phím 2)</span>
+                        <span>🐢 Chậm 0.75x</span>
+                        <span className="hidden sm:inline">(Phím 2)</span>
                       </button>
                     </div>
 
                     {/* Highlighted Collocation */}
                     {currentCard.chunk && (
-                      <div className="pt-4">
-                        <span className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
+                      <div className="pt-2 sm:pt-4">
+                        <span className="text-[10px] sm:text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
                           Cụm từ đi kèm (Collocation):
                         </span>
-                        <p className="text-base font-bold text-emerald-300 mt-0.5">
+                        <p className="text-sm sm:text-base font-bold text-emerald-300 mt-0.5">
                           "{currentCard.chunk}"
                         </p>
                       </div>
                     )}
                   </div>
 
-                  <div className="text-center text-xs text-slate-500 flex items-center justify-center gap-1.5">
+                  <div className="text-center text-[11px] sm:text-xs text-slate-500 flex items-center justify-center gap-1.5">
                     <RotateCw className="w-3.5 h-3.5" />
                     <span>Bấm vào thẻ để lật xem nghĩa & mẹo nhớ</span>
                   </div>
                 </div>
 
                 {/* MẶT SAU (BACK) */}
-                <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-3xl bg-[#131B2E] border-2 border-emerald-500/40 p-6 sm:p-7 flex flex-col justify-between shadow-2xl overflow-y-auto">
+                <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-3xl bg-[#131B2E] border-2 border-emerald-500/40 p-4 sm:p-7 flex flex-col justify-between shadow-2xl overflow-y-auto">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs uppercase font-extrabold tracking-wider px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    <span className="text-[11px] sm:text-xs uppercase font-extrabold tracking-wider px-2.5 sm:px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                       Mặt sau: Nghĩa & Ứng Dụng
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSkipMastered();
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 shadow-sm transition hover:scale-[1.02] active:scale-95"
+                        className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 shadow-sm transition hover:scale-[1.02] active:scale-95"
                         title="Đã biết rõ từ này rồi, bấm để đánh dấu Đã thuộc và chuyển ngay sang từ tiếp theo"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        <span>Đã biết từ này</span>
+                        <span>Đã biết</span>
                       </button>
                       <button
                         onClick={(e) => {
@@ -789,18 +792,19 @@ export default function StudySessionModal({
 
                   {/* Meaning & Visual Illustration & Mnemonic & Example */}
                   <div className="space-y-3 py-1">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4">
-                      <div className="space-y-2 flex-1 text-center sm:text-left min-w-0">
+                    {/* Bố cục xếp dọc trên mobile để hình ảnh không ép chữ tiếng Việt */}
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-3 sm:gap-4">
+                      <div className="space-y-2 flex-1 w-full text-left min-w-0">
                         <div>
                           <span className="text-xs text-slate-400">Nghĩa tiếng Việt:</span>
-                          <h3 className="text-2xl sm:text-3xl font-extrabold text-emerald-300 mt-0.5 tracking-tight leading-snug">
+                          <h3 className="text-xl sm:text-3xl font-extrabold text-emerald-300 mt-0.5 tracking-tight leading-snug">
                             {currentCard.meaning}
                           </h3>
                         </div>
 
                         {/* Mnemonic Frame */}
                         {currentCard.mnemonic && (
-                          <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs leading-relaxed flex items-start gap-2.5 text-left">
+                          <div className="p-3 sm:p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs leading-relaxed flex items-start gap-2.5 text-left">
                             <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                             <div>{currentCard.mnemonic.replace(/^[💡\s]+/, '')}</div>
                           </div>
@@ -808,7 +812,7 @@ export default function StudySessionModal({
                       </div>
 
                       {/* Visual Memory Illustration Frame */}
-                      <div className="shrink-0">
+                      <div className="shrink-0 w-full sm:w-auto flex justify-center py-1 sm:py-0">
                         <WordIllustration
                           word={currentCard.word}
                           meaning={currentCard.meaning}
@@ -820,7 +824,7 @@ export default function StudySessionModal({
 
                     {/* Sentence Pattern & Example */}
                     {currentCard.example && (
-                      <div className="p-3.5 rounded-2xl bg-[#0B0F17] border border-slate-800 space-y-1.5">
+                      <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-slate-800 space-y-1.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] text-indigo-400 font-bold uppercase tracking-wider">
                             Câu Ví Dụ Thực Chiến:
@@ -835,24 +839,24 @@ export default function StudySessionModal({
                             <Volume2 className="w-4 h-4" />
                           </button>
                         </div>
-                        <p className="text-sm font-semibold text-slate-100">
+                        <p className="text-xs sm:text-sm font-semibold text-slate-100">
                           "{currentCard.example}"
                         </p>
                         {currentCard.exampleVi && (
-                          <p className="text-xs text-slate-400">{currentCard.exampleVi}</p>
+                          <p className="text-[11px] sm:text-xs text-slate-400">{currentCard.exampleVi}</p>
                         )}
                       </div>
                     )}
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                    <span className="text-xs text-slate-400">Ghi nhớ kỹ nghĩa & câu ví dụ trước khi làm bài tập</span>
+                    <span className="text-[11px] sm:text-xs text-slate-400 truncate mr-2">Ghi nhớ kỹ nghĩa & câu ví dụ</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setStep(2);
                       }}
-                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow transition"
+                      className="px-3.5 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow transition shrink-0"
                     >
                       <span>Sang Bước 2</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -915,10 +919,10 @@ export default function StudySessionModal({
             </div>
           )}
 
-          {/* Unified Navigation & Keyboard Shortcuts Bar (Tách bạch rõ ràng, không đè lấn) */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-            {/* Trái: Danh sách phím tắt */}
-            <div className="flex flex-wrap items-center gap-2.5 text-xs text-slate-400">
+          {/* Unified Navigation & Keyboard Shortcuts Bar (Tách bạch rõ ràng, tối ưu cảm ứng Mobile) */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
+            {/* Desktop: Danh sách phím tắt (Ẩn trên điện thoại) */}
+            <div className="hidden md:flex flex-wrap items-center gap-2.5 text-xs text-slate-400">
               <span className="font-semibold text-slate-300">Phím tắt:</span>
               <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono text-[11px]">Space</kbd> Lật thẻ</span>
               <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono text-[11px]">1</kbd> Nghe 1.0x</span>
@@ -926,12 +930,37 @@ export default function StudySessionModal({
               <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono text-[11px]">S</kbd> Ghim</span>
             </div>
 
-            {/* Phải: Điều hướng trực tiếp sang Bước 2 */}
-            <div className="flex items-center gap-2 shrink-0">
+            {/* Mobile Touch Action Bar: 3 phím bấm cảm ứng lớn dễ chạm ngón tay cái */}
+            <div className="grid grid-cols-3 gap-2 w-full md:hidden">
+              <button
+                onClick={() => setIsFlipped((v) => !v)}
+                className="py-2.5 px-2 rounded-xl bg-slate-900 border border-slate-700/70 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 active:bg-slate-800 transition"
+              >
+                <RotateCw className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{isFlipped ? 'Mặt trước' : 'Lật thẻ'}</span>
+              </button>
+              <button
+                onClick={() => onSpeak && onSpeak(currentCard.word, 1.0)}
+                className="py-2.5 px-2 rounded-xl bg-slate-900 border border-slate-700/70 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 active:bg-slate-800 transition"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Nghe</span>
+              </button>
+              <button
+                onClick={handleSkipMastered}
+                className="py-2.5 px-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 active:bg-emerald-500/25 transition"
+              >
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Đã thuộc</span>
+              </button>
+            </div>
+
+            {/* Điều hướng tiếp sang Bước 2 */}
+            <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
               {!showFlatMode && (
                 <button
                   onClick={() => setIsFlipped((v) => !v)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5"
+                  className="hidden md:flex px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition items-center gap-1.5"
                 >
                   <RotateCw className="w-3.5 h-3.5" />
                   <span>{isFlipped ? 'Mặt trước' : 'Lật thẻ'}</span>
@@ -940,7 +969,7 @@ export default function StudySessionModal({
 
               <button
                 onClick={() => setStep(2)}
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition transform hover:translate-x-0.5 active:scale-95"
+                className="w-full md:w-auto justify-center px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition transform hover:translate-x-0.5 active:scale-95"
               >
                 <span>Sang Bước 2: Phản xạ nghĩa</span>
                 <ArrowRight className="w-4 h-4" />

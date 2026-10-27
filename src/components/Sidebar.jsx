@@ -41,7 +41,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`h-screen sticky top-0 bg-[#0B0F17] border-r border-slate-800/80 flex flex-col shrink-0 select-none transition-all duration-300 z-30 overflow-hidden ${
+      className={`hidden lg:flex h-screen sticky top-0 bg-[#0B0F17] border-r border-slate-800/80 flex-col shrink-0 select-none transition-all duration-300 z-30 overflow-hidden ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >

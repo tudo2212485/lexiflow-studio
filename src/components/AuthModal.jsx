@@ -472,12 +472,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
       {/* Light Dismiss Backdrop */}
       <div className="fixed inset-0" onClick={onClose} />
 
-      {/* Split-Card Modal (max-w-5xl) */}
-      <div className="relative w-full max-w-5xl bg-[#0B1120] border border-slate-800 rounded-3xl shadow-2xl shadow-indigo-950/70 overflow-hidden z-10 text-slate-100 flex flex-col md:flex-row">
+      {/* Split-Card Modal (Mobile: max-h-[90dvh] overflow-y-auto; Desktop: max-w-5xl) */}
+      <div className="relative w-full max-w-md md:max-w-5xl max-h-[90dvh] overflow-y-auto md:overflow-visible bg-[#0B1120] border border-slate-800 rounded-3xl shadow-2xl shadow-indigo-950/70 z-10 text-slate-100 flex flex-col md:flex-row">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition"
+          className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-20 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/80 transition"
           aria-label="Đóng"
         >
           <X className="w-5 h-5" />
@@ -564,7 +564,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
         {/* ========================================================= */}
         {/* RIGHT COLUMN: INTERACTIVE AUTH FORMS (55% Width) */}
         {/* ========================================================= */}
-        <div className="w-full md:w-[55%] p-6 sm:p-8 bg-[#0F1626] flex flex-col justify-center">
+        <div className="w-full md:w-[55%] p-5 sm:p-8 bg-[#0F1626] flex flex-col justify-center">
           {/* TOP SWITCHER: ĐĂNG NHẬP | TẠO TÀI KHOẢN */}
           {mode !== 'otp_verify' && mode !== 'forgot_password' && (
             <div className="flex rounded-2xl bg-slate-900/90 p-1 mb-6 border border-slate-800">

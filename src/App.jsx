@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Home, Layers, BookOpen, Headphones } from 'lucide-react';
 
 // Data imports
 import INITIAL_ROADMAP_STAGES from './data/roadmap16Stages.json';
@@ -650,7 +650,7 @@ export default function App() {
   }, [vocabCourses, activePracticeDeck]);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#0B0F17] text-slate-100 flex flex-col md:flex-row font-sans selection:bg-indigo-500 selection:text-white antialiased">
+    <div className="h-screen h-[100dvh] w-screen overflow-hidden bg-[#0B0F17] text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-indigo-500 selection:text-white antialiased">
       {/* TOAST NOTIFICATION */}
       {toast && (
         <div className="fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-indigo-950/95 border border-indigo-400/50 text-xs font-bold text-white shadow-2xl backdrop-blur-md animate-bounce">
@@ -659,7 +659,7 @@ export default function App() {
         </div>
       )}
 
-      {/* LEFT SIDEBAR NAVIGATION */}
+      {/* LEFT SIDEBAR NAVIGATION (Hidden on mobile < 1024px) */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -699,8 +699,8 @@ export default function App() {
           setIsSidebarCollapsed={setIsSidebarCollapsed}
         />
 
-        {/* MAIN SCROLLABLE VIEW AREA */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 pt-6 md:pt-8 pb-24">
+        {/* MAIN SCROLLABLE VIEW AREA (With bottom padding for MobileBottomNav) */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 pt-4 md:pt-8 pb-24 lg:pb-8">
           {activeDeckObject ? (
             <StudySessionModal
               deck={activeDeckObject}
@@ -815,6 +815,74 @@ export default function App() {
         onAuthSuccess={handleAuthSuccess}
         onShowToast={showToast}
       />
+
+      {/* MOBILE BOTTOM NAVIGATION BAR (Fixed at bottom on < 1024px) */}
+      {!activeDeckObject && (
+        <MobileBottomNav
+          activeTab={activeTab}
+          onSelectTab={(tabId) => {
+            setActivePracticeDeck(null);
+            handleNavigateTab(tabId);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Native App-like Mobile Bottom Navigation Bar (Visible only on < 1024px)
+ */
+function MobileBottomNav({ activeTab, onSelectTab }) {
+  const tabs = [
+    { id: 'dashboard', label: 'Tổng quan', icon: Home },
+    { id: 'vocab', label: 'Từ vựng', icon: Layers },
+    { id: 'grammar', label: 'Ngữ pháp', icon: BookOpen },
+    { id: 'speaking', label: 'Nghe - Nói', icon: Headphones },
+    { id: 'ai', label: 'AI Lab', icon: Sparkles, highlight: true }
+  ];
+
+  return (
+    <nav
+      aria-label="Thanh điều hướng di động"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] flex justify-around items-center lg:hidden shadow-[0_-10px_25px_rgba(0,0,0,0.5)] select-none"
+    >
+      {tabs.map((tab) => {
+        const Icon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onSelectTab(tab.id)}
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 relative ${
+              isActive ? 'text-indigo-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {isActive && (
+              <span className="absolute -top-1.5 w-6 h-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+            )}
+            <div
+              className={`p-1 rounded-lg transition ${
+                isActive
+                  ? 'bg-indigo-500/15 text-indigo-400 scale-105'
+                  : tab.highlight
+                  ? 'text-amber-400'
+                  : ''
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+            </div>
+            <span
+              className={`text-[11px] leading-tight mt-0.5 truncate max-w-[64px] ${
+                isActive ? 'text-indigo-300 font-bold' : 'text-slate-400 font-medium'
+              }`}
+            >
+              {tab.label}
+            </span>
+          </button>
+        );
+      })}
+    </nav>
   );
 }

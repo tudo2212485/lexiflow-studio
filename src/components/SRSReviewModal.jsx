@@ -96,8 +96,8 @@ export default function SRSReviewModal({
   const currentCard = reviewQueue[currentIndex];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg rounded-3xl bg-[#131B2E] border border-indigo-500/30 p-6 shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-lg rounded-3xl bg-[#131B2E] border border-indigo-500/30 p-4 sm:p-6 shadow-2xl relative max-h-[90dvh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center gap-2.5">

@@ -1100,7 +1100,7 @@ export default function SpeakingLab({ onSpeak, onPinNote, onAwardXP, vocabCourse
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT 2 COLS: 3-STEP SPEAKING WORKFLOW */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="p-6 sm:p-7 rounded-3xl bg-[#131B2E] border border-indigo-500/30 shadow-2xl space-y-6 relative overflow-hidden">
+          <div className="p-4 sm:p-7 rounded-3xl bg-[#131B2E] border border-indigo-500/30 shadow-2xl space-y-5 sm:space-y-6 relative overflow-hidden">
             {/* Sentence Header & Stepper */}
             <div className="flex items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
               <div className="flex items-center gap-2">
@@ -1218,11 +1218,11 @@ export default function SpeakingLab({ onSpeak, onPinNote, onAwardXP, vocabCourse
               </div>
 
               {/* Audio Controls (0.75x, 1.0x, Loop) */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => playModelAudio(1.0)}
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-md transition"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition active:scale-95"
                   >
                     <Volume2 className="w-4 h-4" />
                     <span>Nghe chuẩn 1.0x</span>
@@ -1230,16 +1230,16 @@ export default function SpeakingLab({ onSpeak, onPinNote, onAwardXP, vocabCourse
 
                   <button
                     onClick={() => playModelAudio(0.75)}
-                    className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition"
+                    className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95"
                   >
-                    <span>🐢 Nghe chậm 0.75x</span>
+                    <span>🐢 Chậm 0.75x</span>
                   </button>
                 </div>
 
                 {/* Continuous Loop Mode */}
                 <button
                   onClick={() => setIsLooping((v) => !v)}
-                  className={`px-3.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition ${
+                  className={`w-full sm:w-auto px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 ${
                     isLooping
                       ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20'
                       : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
@@ -1310,21 +1310,21 @@ export default function SpeakingLab({ onSpeak, onPinNote, onAwardXP, vocabCourse
 
                 {/* User Recorded Audio Playback (Nghe lại giọng của bạn) */}
                 {recordedAudioUrl && (
-                  <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full">
                     <button
                       onClick={playUserAudio}
-                      className="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-2 transition"
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95"
                     >
                       <Headphones className="w-4 h-4" />
-                      <span>🎧 Nghe lại giọng của bạn vừa nói</span>
+                      <span>🎧 Nghe lại giọng của bạn</span>
                     </button>
 
                     <button
                       onClick={() => playModelAudio(1.0)}
-                      className="px-4 py-2 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center gap-2 transition"
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95"
                     >
                       <Volume2 className="w-4 h-4" />
-                      <span>🔊 Nghe lại giọng mẫu đối chiếu</span>
+                      <span>🔊 Nghe giọng mẫu đối chiếu</span>
                     </button>
                   </div>
                 )}
@@ -1407,13 +1407,13 @@ export default function SpeakingLab({ onSpeak, onPinNote, onAwardXP, vocabCourse
                 </div>
 
                 {/* Next Sentence Navigation Button */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2 border-t border-slate-800">
                   <button
                     onClick={() => {
                       setRecognizedTranscript('');
                       setEvalResult(null);
                     }}
-                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95"
                   >
                     <RotateCcw className="w-3.5 h-3.5" /> Luyện lại câu này
                   </button>
@@ -1428,7 +1428,7 @@ export default function SpeakingLab({ onSpeak, onPinNote, onAwardXP, vocabCourse
                         setSentenceIndex(0);
                       }
                     }}
-                    className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition transform hover:translate-x-0.5"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition transform hover:translate-x-0.5 active:scale-95"
                   >
                     <span>
                       {sentenceIndex + 1 < currentScenario.sentences.length

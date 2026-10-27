@@ -139,7 +139,7 @@ export default function AILab({ onPinNote, onAwardXP, onSpeak }) {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div className="p-6 rounded-3xl bg-gradient-to-r from-indigo-950/80 to-[#0e1526] border border-indigo-500/30 space-y-2 shadow-xl">
+      <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-r from-indigo-950/80 to-[#0e1526] border border-indigo-500/30 space-y-2 shadow-xl">
         <span className="text-[11px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
           ∞ MỔ XẺ CÂU & TỪ VỰNG KHÔNG GIỚI HẠN
         </span>
@@ -185,7 +185,7 @@ export default function AILab({ onPinNote, onAwardXP, onSpeak }) {
       </form>
 
       {analysis && (
-        <div className="p-6 rounded-3xl bg-[#0e1526] border border-indigo-500/40 space-y-4 shadow-2xl">
+        <div className="p-4 sm:p-6 rounded-3xl bg-[#0e1526] border border-indigo-500/40 space-y-4 shadow-2xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-extrabold text-emerald-300">

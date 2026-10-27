@@ -350,7 +350,7 @@ export default function VocabVault({
               Các bộ thẻ trong lộ trình ({filteredSubdecks.length} bộ):
             </span>
 
-            <div className="flex items-center gap-1.5 bg-[#0B0F17] p-1 rounded-xl border border-slate-800 text-xs">
+            <div className="flex items-center gap-1.5 bg-[#0B0F17] p-1 rounded-xl border border-slate-800 text-xs overflow-x-auto no-scrollbar max-w-full">
               {[
                 { id: 'all', label: 'Toàn bộ' },
                 { id: 'due', label: 'Cần ôn' },
@@ -360,7 +360,7 @@ export default function VocabVault({
                 <button
                   key={f.id}
                   onClick={() => setSubdeckFilter(f.id)}
-                  className={`px-3 py-1 rounded-lg font-semibold transition ${
+                  className={`px-3 py-1 rounded-lg font-semibold transition shrink-0 ${
                     subdeckFilter === f.id
                       ? 'bg-indigo-600 text-white font-bold'
                       : 'text-slate-400 hover:text-slate-200'

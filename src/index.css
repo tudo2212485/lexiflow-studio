@@ -77,3 +77,13 @@
 .animate-shake {
   animation: shake 0.4s ease-in-out;
 }
+
+/* Hide scrollbar for horizontal mobile step pills */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

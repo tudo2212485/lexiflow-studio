@@ -204,12 +204,12 @@ export default function RoadmapView({
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* 1. COMPACT WELCOME BANNER (No long paragraphs) */}
-      <div className="p-5 md:p-6 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* 1. COMPACT WELCOME BANNER (Responsive flex-col on mobile) */}
+      <div className="p-4 sm:p-6 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-xl">👋</span>
-            <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
               Xin chào, {currentUser ? (currentUser.fullName || userStats?.name || 'Học viên') : 'Bạn'}!
             </h1>
             <span
@@ -235,11 +235,11 @@ export default function RoadmapView({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           {retentionStats.due > 0 ? (
             <button
               onClick={() => setActiveModal('srs')}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/25 flex items-center gap-2 transition"
+              className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/25 flex items-center gap-2 transition"
             >
               <Brain className="w-4 h-4" />
               <span>Ôn {retentionStats.due} từ đến hạn</span>
@@ -247,20 +247,20 @@ export default function RoadmapView({
           ) : (
             <button
               onClick={() => setActiveModal('recall')}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/25 flex items-center gap-2 transition"
+              className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/25 flex items-center gap-2 transition"
             >
               <Zap className="w-4 h-4 text-amber-300" />
-              <span>Luyện Phản Xạ 60s</span>
+              <span>⚡ Luyện Phản Xạ 60s</span>
             </button>
           )}
         </div>
       </div>
 
       {/* 2. TRẠM KIỂM TRA & GIỮ TRÍ NHỚ DÀI HẠN (MEMORY RETENTION & RECALL HUB) */}
-      <div className="p-6 rounded-3xl bg-[#131B2E] border border-slate-800/90 shadow-xl space-y-5">
+      <div className="p-4 sm:p-6 rounded-3xl bg-[#131B2E] border border-slate-800/90 shadow-xl space-y-4 sm:space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
               <Brain className="w-4 h-4" />
             </div>
             <div>
@@ -277,75 +277,75 @@ export default function RoadmapView({
           </span>
         </div>
 
-        {/* 4 Trạng thái trí nhớ trực quan */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* 4 Trạng thái trí nhớ trực quan: 2 cột x 2 hàng trên mobile, 4 cột trên desktop */}
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
           {/* Due Now */}
-          <div className="p-3.5 rounded-2xl bg-[#0B0F17] border border-rose-500/20 space-y-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-rose-500/20 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-rose-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
                 Cần ôn ngay
               </span>
-              <span className="text-xs font-mono text-slate-400">Hôm nay</span>
+              <span className="text-[10px] font-mono text-slate-400">Hôm nay</span>
             </div>
-            <div className="text-xl font-bold text-white">{retentionStats.due}</div>
-            <p className="text-[10px] text-slate-400">
+            <div className="text-lg sm:text-xl font-bold text-white">{retentionStats.due}</div>
+            <p className="text-[10px] text-slate-400 line-clamp-1">
               {retentionStats.due === 0 && retentionStats.totalStudied === 0
-                ? 'Hãy học từ mới đầu tiên để kích hoạt lịch nhắc ôn SRS'
+                ? 'Hãy học từ mới'
                 : 'Đến hạn theo lịch SRS'}
             </p>
           </div>
 
           {/* Weak / Forgotten */}
-          <div className="p-3.5 rounded-2xl bg-[#0B0F17] border border-amber-500/20 space-y-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-amber-500/20 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-amber-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
                 Từ hay nhầm
               </span>
-              <span className="text-xs font-mono text-slate-400">Ưu tiên</span>
+              <span className="text-[10px] font-mono text-slate-400">Ưu tiên</span>
             </div>
-            <div className="text-xl font-bold text-white">{retentionStats.weak}</div>
-            <p className="text-[10px] text-slate-400">Từng trả lời sai hoặc quên</p>
+            <div className="text-lg sm:text-xl font-bold text-white">{retentionStats.weak}</div>
+            <p className="text-[10px] text-slate-400 line-clamp-1">Từng trả lời sai</p>
           </div>
 
           {/* Learning */}
-          <div className="p-3.5 rounded-2xl bg-[#0B0F17] border border-blue-500/20 space-y-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-blue-500/20 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-blue-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-blue-500" />
                 Đang ghi nhớ
               </span>
-              <span className="text-xs font-mono text-slate-400">1 - 7 ngày</span>
+              <span className="text-[10px] font-mono text-slate-400">1 - 7 ngày</span>
             </div>
-            <div className="text-xl font-bold text-white">{retentionStats.learning}</div>
-            <p className="text-[10px] text-slate-400">Đang củng cố ngắn hạn</p>
+            <div className="text-lg sm:text-xl font-bold text-white">{retentionStats.learning}</div>
+            <p className="text-[10px] text-slate-400 line-clamp-1">Củng cố ngắn hạn</p>
           </div>
 
           {/* Mastered */}
-          <div className="p-3.5 rounded-2xl bg-[#0B0F17] border border-emerald-500/20 space-y-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-emerald-500/20 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 Đã thuộc làu
               </span>
-              <span className="text-xs font-mono text-slate-400">&gt; 21 ngày</span>
+              <span className="text-[10px] font-mono text-slate-400">&gt; 21 ngày</span>
             </div>
-            <div className="text-xl font-bold text-white">{retentionStats.mastered}</div>
-            <p className="text-[10px] text-slate-400">Vào trí nhớ dài hạn vĩnh viễn</p>
+            <div className="text-lg sm:text-xl font-bold text-white">{retentionStats.mastered}</div>
+            <p className="text-[10px] text-slate-400 line-clamp-1">Trí nhớ dài hạn</p>
           </div>
         </div>
 
-        {/* 3 Chế độ Kiểm tra nhanh 1 chạm */}
-        <div className="pt-2">
+        {/* 3 Chế độ Kiểm tra nhanh 1 chạm: Xếp dọc trên mobile, 3 cột trên desktop */}
+        <div className="pt-1">
           <p className="text-xs font-semibold text-slate-300 mb-2.5">
             Chọn 1 chế độ để kiểm tra xem bạn còn nhớ không:
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-3">
             {/* Mode 1: 60s Quick Recall */}
             <button
               onClick={() => setActiveModal('recall')}
-              className="p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 hover:border-amber-500/40 text-left transition group relative overflow-hidden"
+              className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 hover:border-amber-500/40 text-left transition group relative overflow-hidden"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
@@ -365,7 +365,7 @@ export default function RoadmapView({
             {/* Mode 2: Dictation & Spelling */}
             <button
               onClick={() => setActiveModal('dictation')}
-              className="p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 hover:border-blue-500/40 text-left transition group relative overflow-hidden"
+              className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 hover:border-blue-500/40 text-left transition group relative overflow-hidden"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
@@ -385,7 +385,7 @@ export default function RoadmapView({
             {/* Mode 3: SRS Review */}
             <button
               onClick={() => setActiveModal('srs')}
-              className="p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 hover:border-purple-500/40 text-left transition group relative overflow-hidden"
+              className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0F17] border border-purple-500/40 text-left transition group relative overflow-hidden"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center shrink-0">
@@ -405,17 +405,17 @@ export default function RoadmapView({
         </div>
       </div>
 
-      {/* 3. BỐ CỤC CHUẨN ENGMASTERAI (Cột chính 2/3 + Cột phụ 1/3) */}
+      {/* 3. BỐ CỤC LỘ TRÌNH VÀ TIẾN ĐỘ (Mobile: Tiếp tục học -> Tiến độ hôm nay -> Lộ trình; Desktop: 8 cols + 4 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* CỘT CHÍNH BÊN TRÁI (8 COLS) */}
+        {/* CỘT CHÍNH (8 COLS TRÊN DESKTOP) */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Card "Tiếp tục học" */}
-          <div className="p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md flex items-center justify-between gap-4">
+          {/* 3.1 Card "Tiếp tục học / Đang học dở" (Luôn nằm trên đầu) */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
               <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-xl shrink-0">
                 {currentActiveCourse?.icon || '📘'}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300">
                     {subdeckStudied > 0 ? 'Đang học dở' : 'Chặng 1 Khởi Động'}
@@ -428,14 +428,14 @@ export default function RoadmapView({
                   {currentActiveSubdeck?.title || '1. Gia đình và quan hệ'}
                 </h3>
                 <div className="flex items-center gap-3 mt-1.5">
-                  <div className="w-32 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                  <div className="w-28 sm:w-32 bg-slate-800 rounded-full h-1.5 overflow-hidden">
                     <div
                       className="bg-indigo-500 h-full rounded-full transition-all duration-300"
                       style={{ width: `${subdeckPct}%` }}
                     />
                   </div>
                   <span className="text-[11px] font-medium text-slate-400">
-                    {subdeckStudied}/{subdeckTotal} từ ({subdeckPct}% hoàn thành)
+                    {subdeckStudied}/{subdeckTotal} từ ({subdeckPct}%)
                   </span>
                 </div>
               </div>
@@ -449,15 +449,49 @@ export default function RoadmapView({
                   onNavigateTab('vocab', currentActiveCourse?.id);
                 }
               }}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow transition"
+              className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow transition"
             >
               <span>{subdeckStudied > 0 ? 'Tiếp tục' : 'Bắt đầu học'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Khối "Lộ Trình Học Tập Của Bạn" (16 Chặng dọc) */}
-          <div className="p-6 rounded-3xl bg-[#131B2E] border border-slate-800/90 shadow-xl space-y-5">
+          {/* 3.2 MOBILE ONLY: Thẻ "Tiến độ hôm nay" (Đưa lên trước Lộ trình 16 chặng trên mobile) */}
+          <div className="block lg:hidden">
+            <div className="p-4 sm:p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-400" />
+                  <span>Tiến Độ Hôm Nay</span>
+                </h3>
+                <span className="text-xs font-mono text-emerald-400 font-bold">
+                  {userStats?.studiedMinutesToday || 25}/{userStats?.dailyGoalMinutes || 30}m
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-[#0B0F17] border border-slate-800/80">
+                  <span className="text-[10px] text-slate-400 block">Chặng đã học</span>
+                  <span className="font-bold text-white text-sm">{stagesStudiedCount} / 16</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#0B0F17] border border-slate-800/80">
+                  <span className="text-[10px] text-slate-400 block">Kiểm tra phản xạ</span>
+                  <span className="font-bold text-amber-400 text-sm">{recallQuizzesToday} lượt</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#0B0F17] border border-slate-800/80">
+                  <span className="text-[10px] text-slate-400 block">Từ mới đã nạp</span>
+                  <span className="font-bold text-blue-400 text-sm">+{wordsLearnedToday} từ</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#0B0F17] border border-slate-800/80">
+                  <span className="text-[10px] text-slate-400 block">Đã ôn tập SRS</span>
+                  <span className="font-bold text-emerald-400 text-sm">{wordsReviewedToday} từ</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3.3 Khối "Lộ Trình Học Tập Của Bạn" (16 Chặng dọc) */}
+          <div className="p-4 sm:p-6 rounded-3xl bg-[#131B2E] border border-slate-800/90 shadow-xl space-y-4 sm:space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
               <div>
                 <h3 className="text-sm font-bold text-white">Lộ Trình Học Tập Của Bạn</h3>
@@ -467,7 +501,7 @@ export default function RoadmapView({
               </div>
 
               {/* Filter Pills */}
-              <div className="flex items-center gap-1 bg-[#0B0F17] p-1 rounded-xl border border-slate-800 text-xs">
+              <div className="flex items-center gap-1 bg-[#0B0F17] p-1 rounded-xl border border-slate-800 text-xs self-start sm:self-auto">
                 {[
                   { id: 'all', label: 'Tất cả' },
                   { id: 'grammar', label: 'Ngữ pháp' },
@@ -476,7 +510,7 @@ export default function RoadmapView({
                   <button
                     key={f.id}
                     onClick={() => setStageFilter(f.id)}
-                    className={`px-3 py-1 rounded-lg font-semibold transition ${
+                    className={`px-2.5 py-1 rounded-lg font-semibold transition ${
                       stageFilter === f.id
                         ? 'bg-indigo-600 text-white font-bold'
                         : 'text-slate-400 hover:text-slate-200'
@@ -494,7 +528,7 @@ export default function RoadmapView({
                 <div
                   key={stage.id}
                   onClick={() => onNavigateTab(stage.targetTab, stage.deckId || stage.lessonId)}
-                  className="p-3.5 rounded-2xl bg-[#0B0F17] hover:bg-[#0E1526] border border-slate-800/80 hover:border-indigo-500/40 transition cursor-pointer flex items-center justify-between gap-3 group"
+                  className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] hover:bg-[#0E1526] border border-slate-800/80 hover:border-indigo-500/40 transition cursor-pointer flex items-center justify-between gap-3 group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {/* Circle Stage Number */}
@@ -517,7 +551,7 @@ export default function RoadmapView({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <div className="text-right hidden sm:block">
                       <div className="text-xs font-bold text-indigo-400">{stage.progress}%</div>
                       <div className="w-16 bg-slate-800 rounded-full h-1 mt-1 overflow-hidden">
@@ -535,10 +569,10 @@ export default function RoadmapView({
           </div>
         </div>
 
-        {/* CỘT PHỤ BÊN PHẢI (4 COLS) */}
+        {/* CỘT PHỤ BÊN PHẢI (4 COLS TRÊN DESKTOP) */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Card: Tiến độ hôm nay */}
-          <div className="p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md space-y-4">
+          {/* Card: Tiến độ hôm nay (Hiện trên Desktop, ẩn trên Mobile vì Mobile đã render ở trên) */}
+          <div className="hidden lg:block p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <Clock className="w-4 h-4 text-emerald-400" />
@@ -569,8 +603,8 @@ export default function RoadmapView({
             </div>
           </div>
 
-          {/* Card: Thành tích */}
-          <div className="p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md space-y-4">
+          {/* Card: Thành tích đạt được */}
+          <div className="p-4 sm:p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <Award className="w-4 h-4 text-indigo-400" />
@@ -583,7 +617,7 @@ export default function RoadmapView({
               {achievements.map((badge) => (
                 <div
                   key={badge.id}
-                  className={`p-3 rounded-2xl bg-[#0B0F17] border transition flex items-center gap-2.5 ${
+                  className={`p-2.5 sm:p-3 rounded-2xl bg-[#0B0F17] border transition flex items-center gap-2.5 ${
                     badge.done
                       ? 'border-emerald-500/30 bg-[#0E1522]'
                       : 'border-slate-800/80 opacity-60'
