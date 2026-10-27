@@ -541,7 +541,18 @@ export default function VocabVault({
           <div className="pt-2">
             {currentMetrics.newCount > 0 && currentMetrics.nextNewWord ? (
               <button
-                onClick={() => onStartFourStep(currentSubdeck, { mode: 'learn_new' })}
+                onClick={() =>
+                  onStartFourStep(currentSubdeck, {
+                    mode: 'learn_new',
+                    lastWordIndex:
+                      currentSubdeck.lastWordIndex !== undefined
+                        ? currentSubdeck.lastWordIndex
+                        : currentMetrics.nextNewWordIndex
+                        ? currentMetrics.nextNewWordIndex - 1
+                        : 0,
+                    lastStep: currentSubdeck.lastStep || 1
+                  })
+                }
                 className="w-full p-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-xl shadow-indigo-600/30 transition transform hover:-translate-y-0.5 border border-indigo-400/30"
               >
                 <div className="flex items-center gap-3">

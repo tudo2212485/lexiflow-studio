@@ -138,10 +138,15 @@ export const userApi = {
     return apiRequest('/user/sync');
   },
 
-  // Update study progress (XP, streak, vocab, grammar)
+  // Direct GET /api/progress for complete user progress & notebooks
+  getProgress: async () => {
+    return apiRequest('/progress');
+  },
+
+  // Direct POST /api/progress for immediate and auto-saved study progress
   updateProgress: async (progressData) => {
-    return apiRequest('/user/progress', {
-      method: 'PUT',
+    return apiRequest('/progress', {
+      method: 'POST',
       body: JSON.stringify(progressData)
     });
   },

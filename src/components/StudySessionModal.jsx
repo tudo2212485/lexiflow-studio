@@ -28,7 +28,8 @@ export default function StudySessionModal({
   onAwardXP,
   onUpdateCardSRS,
   onSaveDeckSession,
-  onMarkCardMastered
+  onMarkCardMastered,
+  onSaveTopicProgress
 }) {
   // Attach original index (1..50) so we can always track where the card is in the main deck
   const allCardsWithIndex = useMemo(() => {
@@ -39,23 +40,8 @@ export default function StudySessionModal({
   const mode = deck?.mode || 'learn_new';
   const initialCardId = deck?.initialCardId || null;
 
-  // Smart Session Queue based on mode
+  // Smart Session Queue: keep entire topic card series (Từ 1/50 -> Từ 50/50) or due review cards
   const [sessionQueue, setSessionQueue] = useState(() => {
-    if (initialCardId) {
-      const targetIdx = allCardsWithIndex.findIndex((c) => c.id === initialCardId);
-      if (targetIdx >= 0) {
-        return [...allCardsWithIndex.slice(targetIdx), ...allCardsWithIndex.slice(0, targetIdx)];
-      }
-    }
-
-    if (mode === 'learn_new') {
-      const unlearned = allCardsWithIndex.filter(
-        (c) => c.status !== 'mastered' && c.status !== 'learning' && c.status !== 'weak'
-      );
-      if (unlearned.length > 0) return unlearned;
-      return allCardsWithIndex; // Fallback if all 50 already mastered
-    }
-
     if (mode === 'review_due') {
       const dueCards = allCardsWithIndex.filter(
         (c) =>
@@ -71,12 +57,47 @@ export default function StudySessionModal({
     return allCardsWithIndex;
   });
 
-  const [queueIndex, setQueueIndex] = useState(0);
+  const [queueIndex, setQueueIndex] = useState(() => {
+    if (initialCardId) {
+      const targetIdx = allCardsWithIndex.findIndex((c) => c.id === initialCardId);
+      if (targetIdx >= 0) return targetIdx;
+    }
+    if (deck?.lastWordIndex !== undefined && Number(deck.lastWordIndex) >= 0) {
+      const idx = Number(deck.lastWordIndex);
+      return Math.min(Math.max(0, idx), Math.max(0, allCardsWithIndex.length - 1));
+    }
+    return 0;
+  });
+
   const [completedCardIds, setCompletedCardIds] = useState(new Set());
   const [sessionCardUpdates, setSessionCardUpdates] = useState({});
   const [isSessionFinished, setIsSessionFinished] = useState(false);
 
-  const [step, setStep] = useState(1); // 1: Flashcard 3D | 2: Quiz | 3: Lego | 4: Dictation + SRS
+  const [step, setStep] = useState(() => {
+    if (deck?.lastStep !== undefined && Number(deck.lastStep) >= 1 && Number(deck.lastStep) <= 4) {
+      return Number(deck.lastStep);
+    }
+    return 1;
+  }); // 1: Flashcard 3D | 2: Quiz | 3: Lego | 4: Dictation + SRS
+
+  // Synchronize topic progress to server and parent state
+  const saveTopicState = (override = {}) => {
+    if (onSaveTopicProgress && deck?.id) {
+      const targetIdx = override.lastWordIndex !== undefined ? override.lastWordIndex : queueIndex;
+      const curCard = sessionQueue[targetIdx];
+      onSaveTopicProgress(deck.id, {
+        lastWordIndex: targetIdx,
+        lastStep: override.lastStep !== undefined ? override.lastStep : step,
+        ...(curCard?.id ? { completedWordIds: [curCard.id] } : {}),
+        ...override
+      });
+    }
+  };
+
+  const changeStep = (newStep) => {
+    setStep(newStep);
+    saveTopicState({ lastStep: newStep });
+  };
 
   // Step 1: 3D Flip state & Mode
   const [isFlipped, setIsFlipped] = useState(false);
@@ -134,6 +155,7 @@ export default function StudySessionModal({
     setDictationPassed(false);
     setRevealedCharsCount(0);
     setShowCollocationHint(false);
+    saveTopicState({ lastWordIndex: idx, lastStep: 1 });
   };
 
   // Step 4: Progressive Character Hint logic
@@ -255,9 +277,9 @@ export default function StudySessionModal({
         if (step === 1) {
           setIsFlipped((prev) => !prev);
         } else if (step === 2 && selectedQuizIdx !== null) {
-          setStep(3);
+          changeStep(3);
         } else if (step === 3 && legoStatus === 'correct') {
-          setStep(4);
+          changeStep(4);
         }
       } else if (e.key === '1') {
         e.preventDefault();
@@ -278,11 +300,11 @@ export default function StudySessionModal({
         }
       } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
         if (step === 1) {
-          setStep(2);
+          changeStep(2);
         } else if (step === 2 && selectedQuizIdx !== null) {
-          setStep(3);
+          changeStep(3);
         } else if (step === 3 && legoStatus === 'correct') {
-          setStep(4);
+          changeStep(4);
         }
       }
     };
@@ -403,11 +425,18 @@ export default function StudySessionModal({
       resetForQueueIndex(queueIndex + 1);
     } else {
       setIsSessionFinished(true);
+      saveTopicState({ lastWordIndex: sessionQueue.length - 1, lastStep: 4 });
     }
   };
 
-  // Safe exit handler that saves progress and session state WITHOUT saving static index
+  // Safe exit handler that saves progress and session state
   const handleExitSession = () => {
+    if (onSaveTopicProgress && deck?.id) {
+      onSaveTopicProgress(deck.id, {
+        lastWordIndex: queueIndex,
+        lastStep: step
+      });
+    }
     if (onSaveDeckSession && deck?.id) {
       onSaveDeckSession(deck.id, sessionCardUpdates);
     }
@@ -482,6 +511,7 @@ export default function StudySessionModal({
         resetForQueueIndex(queueIndex + 1);
       } else {
         setIsSessionFinished(true);
+        saveTopicState({ lastWordIndex: sessionQueue.length - 1, lastStep: 4 });
       }
     }
   };
@@ -610,7 +640,7 @@ export default function StudySessionModal({
                 key={item.s}
                 onClick={() => {
                   if (item.s <= step || dictationPassed) {
-                    setStep(item.s);
+                    changeStep(item.s);
                   }
                 }}
                 className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
@@ -854,7 +884,7 @@ export default function StudySessionModal({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setStep(2);
+                        changeStep(2);
                       }}
                       className="px-3.5 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow transition shrink-0"
                     >
@@ -892,7 +922,7 @@ export default function StudySessionModal({
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-emerald-400 font-bold uppercase">Mặt sau</span>
                     <button
-                      onClick={() => setStep(2)}
+                      onClick={() => changeStep(2)}
                       className="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
                     >
                       <span>Sang Bước 2</span>
@@ -968,7 +998,7 @@ export default function StudySessionModal({
               )}
 
               <button
-                onClick={() => setStep(2)}
+                onClick={() => changeStep(2)}
                 className="w-full md:w-auto justify-center px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition transform hover:translate-x-0.5 active:scale-95"
               >
                 <span>Sang Bước 2: Phản xạ nghĩa</span>
@@ -1092,7 +1122,7 @@ export default function StudySessionModal({
                 Nhấn <kbd className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-mono text-[11px]">Enter</kbd> hoặc <kbd className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-mono text-[11px]">Space</kbd> để tiếp tục
               </span>
               <button
-                onClick={() => setStep(3)}
+                onClick={() => changeStep(3)}
                 className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition group"
               >
                 <span>Tiếp tục: Bước 3 (Ghép câu Lego)</span>
@@ -1211,7 +1241,7 @@ export default function StudySessionModal({
 
               {legoStatus === 'correct' && (
                 <button
-                  onClick={() => setStep(4)}
+                  onClick={() => changeStep(4)}
                   className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg transition"
                 >
                   <span>Tiếp tục: Bước 4 (Nghe & Gõ từ) →</span>

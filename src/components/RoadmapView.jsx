@@ -25,6 +25,7 @@ export default function RoadmapView({
   grammarCourses = [],
   roadmapStages = [],
   allCards = [],
+  lastActiveTopicId,
   onNavigateTab,
   onStartPracticeDeck,
   onSpeak,
@@ -137,9 +138,29 @@ export default function RoadmapView({
     });
   }, [computedStages, stageFilter]);
 
-  // Current active continue card with dynamic progress
-  const currentActiveCourse = vocabCourses[0];
-  const currentActiveSubdeck = currentActiveCourse?.subdecks?.[0];
+  // Current active continue card dynamically resolved from lastActiveTopicId or first in-progress subdeck
+  const { currentActiveCourse, currentActiveSubdeck } = useMemo(() => {
+    if (lastActiveTopicId) {
+      for (const course of vocabCourses) {
+        const found = course.subdecks?.find((s) => s.id === lastActiveTopicId);
+        if (found) return { currentActiveCourse: course, currentActiveSubdeck: found };
+      }
+    }
+    // Fallback: first subdeck with recorded progress
+    for (const course of vocabCourses) {
+      const inProg = course.subdecks?.find(
+        (s) => (s.lastWordIndex && s.lastWordIndex > 0) || s.cards?.some((c) => c.status === 'learning' || c.status === 'mastered')
+      );
+      if (inProg) return { currentActiveCourse: course, currentActiveSubdeck: inProg };
+    }
+    return {
+      currentActiveCourse: vocabCourses[0] || null,
+      currentActiveSubdeck: vocabCourses[0]?.subdecks?.[0] || null
+    };
+  }, [vocabCourses, lastActiveTopicId]);
+
+  const activeLastWordIndex = currentActiveSubdeck?.lastWordIndex || 0;
+  const activeLastStep = currentActiveSubdeck?.lastStep || 1;
   const subdeckStudied = currentActiveSubdeck?.cards?.filter((c) => c.status === 'mastered' || c.status === 'learning').length || 0;
   const subdeckTotal = currentActiveSubdeck?.totalWords || currentActiveSubdeck?.cards?.length || 50;
   const subdeckPct = subdeckTotal > 0 ? Math.min(100, Math.round((subdeckStudied / subdeckTotal) * 100)) : 0;
@@ -418,7 +439,9 @@ export default function RoadmapView({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300">
-                    {subdeckStudied > 0 ? 'Đang học dở' : 'Chặng 1 Khởi Động'}
+                    {subdeckStudied > 0 || activeLastWordIndex > 0
+                      ? `Đang học dở (Từ ${activeLastWordIndex + 1}/${subdeckTotal})`
+                      : 'Chặng 1 Khởi Động'}
                   </span>
                   <span className="text-xs text-slate-400 font-semibold truncate">
                     {currentActiveCourse?.title}
@@ -444,14 +467,18 @@ export default function RoadmapView({
             <button
               onClick={() => {
                 if (onStartPracticeDeck && currentActiveSubdeck) {
-                  onStartPracticeDeck(currentActiveSubdeck, { mode: 'learn_new' });
+                  onStartPracticeDeck(currentActiveSubdeck, {
+                    mode: 'learn_new',
+                    lastWordIndex: activeLastWordIndex,
+                    lastStep: activeLastStep
+                  });
                 } else if (onNavigateTab) {
                   onNavigateTab('vocab', currentActiveCourse?.id);
                 }
               }}
               className="w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shrink-0 flex items-center gap-1.5 shadow transition"
             >
-              <span>{subdeckStudied > 0 ? 'Tiếp tục' : 'Bắt đầu học'}</span>
+              <span>{subdeckStudied > 0 || activeLastWordIndex > 0 ? 'Tiếp tục' : 'Bắt đầu học'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

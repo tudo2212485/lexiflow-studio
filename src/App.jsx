@@ -61,16 +61,31 @@ export function getFreshVocabCourses() {
   }));
 }
 
-// Helper to overlay progress onto courses
+// User-scoped progress key helper to prevent data cross-contamination between accounts
+export function getUserProgressKey(userId) {
+  return userId ? `lexiflow_progress_${userId}` : 'lexiflow_vocab_progress_v2';
+}
+
+// Helper to overlay progress and topic resume state onto courses
 export function applyVocabProgressToCourses(baseCourses, progressMap) {
   if (!progressMap || Object.keys(progressMap).length === 0) {
     return baseCourses;
   }
+
+  const learnedMap = progressMap.learnedWords || {};
+  const topicState = progressMap.topicState || {};
+
   return baseCourses.map((c) => ({
     ...c,
     subdecks: (c.subdecks || []).map((s) => {
+      const savedTopic = topicState[s.id] || {};
       const updatedCards = (s.cards || []).map((card) => {
-        const prog = progressMap[card.id];
+        const prog =
+          learnedMap[card.id] ||
+          progressMap[card.id] ||
+          learnedMap[card.word?.toLowerCase()] ||
+          progressMap[card.word?.toLowerCase()];
+
         if (!prog) return { ...card, status: card.status || 'new' };
         return {
           ...card,
@@ -83,39 +98,45 @@ export function applyVocabProgressToCourses(baseCourses, progressMap) {
           due: prog.due !== undefined ? prog.due : (card.due || false)
         };
       });
+
       const masteredCount = updatedCards.filter((card) => card.status === 'mastered').length;
       const learningCount = updatedCards.filter((card) => card.status === 'learning' || card.status === 'weak').length;
       const dueCount = updatedCards.filter((card) =>
         (card.status === 'learning' || card.status === 'weak') &&
         ((card.nextReviewAt && card.nextReviewAt <= Date.now()) || card.due)
       ).length;
+
       return {
         ...s,
         cards: updatedCards,
         masteredCount,
         learningCount,
         dueCount,
+        lastWordIndex: savedTopic.lastWordIndex !== undefined ? savedTopic.lastWordIndex : 0,
+        lastStep: savedTopic.lastStep !== undefined ? savedTopic.lastStep : 1,
         progressPercent: Math.min(100, Math.round((masteredCount / (s.totalWords || updatedCards.length || 50)) * 100))
       };
     })
   }));
 }
 
-// Dedicated vocab progress map storage helper (stores status, stepCompleted, lastStudiedAt, nextReviewAt, reviewCount)
-export function getStoredVocabProgress() {
+// User-scoped vocab progress storage helpers
+export function getStoredVocabProgress(userId) {
   try {
-    const token = getStoredToken();
-    if (!token) return {}; // Clean slate when not logged in
-    const raw = localStorage.getItem('lexiflow_vocab_progress_v2');
-    return raw ? JSON.parse(raw) : {};
+    const key = getUserProgressKey(userId);
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+    const legacy = localStorage.getItem('lexiflow_vocab_progress_v2');
+    return legacy ? JSON.parse(legacy) : {};
   } catch {
     return {};
   }
 }
 
-export function saveStoredVocabProgress(map) {
+export function saveStoredVocabProgress(map, userId) {
   try {
-    localStorage.setItem('lexiflow_vocab_progress_v2', JSON.stringify(map));
+    const key = getUserProgressKey(userId);
+    localStorage.setItem(key, JSON.stringify(map || {}));
   } catch {}
 }
 
@@ -206,39 +227,72 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  // Server Hydration Guard: Prevents auto-saves from writing empty default state to database
+  const isHydratedFromServer = useRef(false);
+  const activeUserProgressRef = useRef({});
+
+  // Direct Server Sync Helper with Hydration Guard
+  const syncProgressToServer = async (payload = {}) => {
+    const token = getStoredToken();
+    if (!token || !currentUser) return;
+    if (!isHydratedFromServer.current) {
+      console.warn('[Sync Guard] Bỏ qua sync vì chưa hoàn tất hydrate từ Server');
+      return;
+    }
+
+    try {
+      await userApi.updateProgress(payload);
+    } catch (err) {
+      console.warn('[Sync Error] Không thể lưu tiến độ lên Server:', err.message);
+    }
+  };
+
   // Auto-sync user profile & progress from PostgreSQL on mount if token exists
   useEffect(() => {
     const token = getStoredToken();
     if (!token) {
-      // Clear legacy localStorage from unauthenticated state to avoid data leaks
+      isHydratedFromServer.current = true; // Guest does not need server hydration
       setUserStats(GUEST_STATS);
       setStudyNotes([]);
       setVocabCourses(getFreshVocabCourses());
       return;
     }
 
-    userApi.getSync()
+    isHydratedFromServer.current = false; // Block auto-saves until server hydration completes!
+
+    userApi.getProgress()
       .then((data) => {
         if (data?.profile) {
-          setCurrentUser({
+          const userObj = {
             id: data.profile.id,
             fullName: data.profile.fullName || data.profile.name,
             email: data.profile.email,
             avatarUrl: data.profile.avatarUrl
-          });
+          };
+          setCurrentUser(userObj);
           setUserStats((prev) => ({
             ...prev,
             ...data.profile,
+            xp: data.xp !== undefined ? data.xp : (data.profile.xp || 0),
+            streak: data.streak !== undefined ? data.streak : (data.profile.streak || 1),
+            level: data.level !== undefined ? data.level : (data.profile.level || 1),
             name: data.profile.fullName || prev.name
           }));
+
+          const rawVocab = data.vocabProgress || {};
+          activeUserProgressRef.current = rawVocab;
+          saveStoredVocabProgress(rawVocab, userObj.id);
+          setVocabCourses(applyVocabProgressToCourses(getFreshVocabCourses(), rawVocab));
+
+          try {
+            localStorage.setItem(`lexiflow_stats_${userObj.id}`, JSON.stringify(data.profile));
+          } catch {}
         }
         if (data?.notebooks && Array.isArray(data.notebooks)) {
           setStudyNotes(data.notebooks);
         }
-        if (data?.vocabProgress && Object.keys(data.vocabProgress).length > 0) {
-          saveStoredVocabProgress(data.vocabProgress);
-          setVocabCourses((prev) => applyVocabProgressToCourses(prev, data.vocabProgress));
-        }
+        isHydratedFromServer.current = true;
+        console.log('✅ [Hydration] Hydrated complete user progress from PostgreSQL');
       })
       .catch((err) => {
         console.warn('[PostgreSQL Auto-Sync Notice]:', err.message);
@@ -249,16 +303,21 @@ export default function App() {
           setStudyNotes([]);
           setVocabCourses(getFreshVocabCourses());
         }
+        isHydratedFromServer.current = true;
       });
   }, []);
 
   // Handle successful login / registration from AuthModal
   const handleAuthSuccess = (user, syncData) => {
+    isHydratedFromServer.current = false;
     setCurrentUser(user);
     if (syncData?.profile) {
       setUserStats((prev) => ({
         ...prev,
         ...syncData.profile,
+        xp: syncData.xp !== undefined ? syncData.xp : (syncData.profile.xp || 0),
+        streak: syncData.streak !== undefined ? syncData.streak : (syncData.profile.streak || 1),
+        level: syncData.level !== undefined ? syncData.level : (syncData.profile.level || 1),
         name: syncData.profile.fullName || prev.name
       }));
     } else if (user?.fullName) {
@@ -267,19 +326,38 @@ export default function App() {
     if (syncData?.notebooks && Array.isArray(syncData.notebooks)) {
       setStudyNotes(syncData.notebooks);
     }
-    if (syncData?.vocabProgress && Object.keys(syncData.vocabProgress).length > 0) {
-      saveStoredVocabProgress(syncData.vocabProgress);
-      setVocabCourses((prev) => applyVocabProgressToCourses(prev, syncData.vocabProgress));
-    }
+    const rawVocab = syncData?.vocabProgress || {};
+    activeUserProgressRef.current = rawVocab;
+    saveStoredVocabProgress(rawVocab, user?.id);
+    setVocabCourses(applyVocabProgressToCourses(getFreshVocabCourses(), rawVocab));
+    isHydratedFromServer.current = true;
+    console.log('✅ [Login Hydration] Progress successfully hydrated for user:', user?.email);
   };
 
-  // Logout handler (Completely reset all data back to clean guest slate)
-  const handleLogout = () => {
+  // Logout handler (Flush in-memory progress first, then safely clear token)
+  const handleLogout = async () => {
+    // If logged in and hydrated, flush current in-memory progress to server before removing token
+    if (currentUser && isHydratedFromServer.current) {
+      try {
+        await userApi.updateProgress({
+          xp: userStats.xp,
+          level: userStats.level,
+          streak: userStats.streak,
+          vocabProgress: activeUserProgressRef.current || {}
+        });
+      } catch (err) {
+        console.warn('[Logout Flush Notice]:', err.message);
+      }
+    }
+
+    isHydratedFromServer.current = false;
+    activeUserProgressRef.current = {};
     authApi.logout();
     setCurrentUser(null);
     setUserStats(GUEST_STATS);
     setStudyNotes([]);
     setVocabCourses(getFreshVocabCourses());
+    setActivePracticeDeck(null);
     try {
       localStorage.removeItem('lexiflow_v4_stats');
       localStorage.removeItem('lexiflow_vocab_progress_v2');
@@ -392,10 +470,8 @@ export default function App() {
         showToast(`+${amount} XP: ${reason}`);
       }
       
-      // Sync XP to PostgreSQL if logged in
-      if (currentUser) {
-        userApi.updateProgress({ xp: nextXP, level: nextLevel, streak: prev?.streak || 1 }).catch(() => {});
-      }
+      // Sync XP to PostgreSQL if logged in and hydrated
+      syncProgressToServer({ xp: nextXP, level: nextLevel, streak: prev?.streak || 1 });
 
       return {
         ...prev,
@@ -462,8 +538,10 @@ export default function App() {
   // Update card SRS status in vocabCourses & standalone progress map with full subdeck & course recalculation
   const handleUpdateCardSRS = (cardId, srsData, subdeckId = null) => {
     // 1. Update standalone vocabProgress map
-    const progressMap = getStoredVocabProgress();
-    const existing = progressMap[cardId] || {};
+    const progressMap = activeUserProgressRef.current || getStoredVocabProgress(currentUser?.id);
+    const existingLearned = progressMap.learnedWords || {};
+    const existing = existingLearned[cardId] || progressMap[cardId] || {};
+
     const updatedRecord = {
       ...existing,
       ...srsData,
@@ -473,153 +551,107 @@ export default function App() {
       nextReviewAt: srsData.nextReviewAt !== undefined ? srsData.nextReviewAt : (srsData.intervalDays ? Date.now() + srsData.intervalDays * 86400000 : null),
       reviewCount: (existing.reviewCount || 0) + 1
     };
-    progressMap[cardId] = updatedRecord;
-    saveStoredVocabProgress(progressMap);
 
-    // Sync to PostgreSQL if logged in
-    if (currentUser) {
-      userApi.updateProgress({ vocabProgress: { [cardId]: updatedRecord } }).catch(() => {});
-    }
+    const nextLearned = { ...existingLearned, [cardId]: updatedRecord };
+    const nextProgress = {
+      ...progressMap,
+      [cardId]: updatedRecord,
+      learnedWords: nextLearned
+    };
+
+    activeUserProgressRef.current = nextProgress;
+    saveStoredVocabProgress(nextProgress, currentUser?.id);
+
+    // Immediate sync to server with bearer token
+    syncProgressToServer({
+      vocabProgress: {
+        learnedWords: { [cardId]: updatedRecord },
+        [cardId]: updatedRecord
+      }
+    });
 
     // 2. Update vocabCourses
-    setVocabCourses((prev) =>
-      prev.map((c) => {
-        let courseChanged = false;
-        const updatedSubdecks = c.subdecks?.map((s) => {
-          const matchSubdeck = subdeckId ? s.id === subdeckId : s.cards?.some((card) => card.id === cardId);
-          if (!matchSubdeck) return s;
+    setVocabCourses((prev) => applyVocabProgressToCourses(prev, nextProgress));
+  };
 
-          courseChanged = true;
-          const updatedCards = s.cards?.map((card) => {
-            if (card.id !== cardId) return card;
-            return {
-              ...card,
-              ...srsData,
-              stepCompleted: updatedRecord.stepCompleted,
-              lastStudiedAt: updatedRecord.lastStudiedAt,
-              nextReviewAt: updatedRecord.nextReviewAt,
-              reviewCount: updatedRecord.reviewCount
-            };
-          }) || [];
+  // Save topic position & step resume state (e.g., word 3/50, step 1)
+  const handleSaveTopicProgress = (subdeckId, { lastWordIndex, lastStep, completedWordIds } = {}) => {
+    if (!subdeckId) return;
+    const progressMap = activeUserProgressRef.current || getStoredVocabProgress(currentUser?.id);
+    const existingTopics = progressMap.topicState || {};
+    const existingTopic = existingTopics[subdeckId] || {};
 
-          const masteredCount = updatedCards.filter((card) => card.status === 'mastered').length;
-          const learningCount = updatedCards.filter((card) => card.status === 'learning' || card.status === 'weak').length;
-          const dueCount = updatedCards.filter((card) =>
-            (card.status === 'learning' || card.status === 'weak') &&
-            ((card.nextReviewAt && card.nextReviewAt <= Date.now()) || card.due)
-          ).length;
-          const totalWords = s.totalWords || updatedCards.length || 50;
-          const progressPercent = Math.min(100, Math.round((masteredCount / totalWords) * 100));
+    const updatedTopic = {
+      ...existingTopic,
+      ...(lastWordIndex !== undefined ? { lastWordIndex } : {}),
+      ...(lastStep !== undefined ? { lastStep } : {}),
+      ...(completedWordIds ? { completedWordIds: Array.from(new Set([...(existingTopic.completedWordIds || []), ...completedWordIds])) } : {}),
+      updatedAt: new Date().toISOString()
+    };
 
-          const nextSubdeck = {
-            ...s,
-            cards: updatedCards,
-            masteredCount,
-            learningCount,
-            dueCount,
-            progressPercent,
-            lastStudied: 'Hôm nay'
-          };
-          delete nextSubdeck.lastStudiedIndex; // Remove static index to prevent getting stuck
-          return nextSubdeck;
-        });
+    const nextTopics = {
+      ...existingTopics,
+      [subdeckId]: updatedTopic
+    };
 
-        if (!courseChanged) return c;
+    const nextProgress = {
+      ...progressMap,
+      topicState: nextTopics,
+      lastActiveTopicId: subdeckId
+    };
 
-        // Recalculate course stats
-        const allCards = updatedSubdecks.flatMap((s) => s.cards || []);
-        const courseMastered = allCards.filter((card) => card.status === 'mastered').length;
-        const courseLearning = allCards.filter((card) => card.status === 'learning' || card.status === 'weak').length;
-        const courseStudied = courseMastered + courseLearning;
-        const totalWords = c.totalWords || allCards.length || 1000;
-        const learnedPercent = Math.min(100, Math.round((courseStudied / totalWords) * 100));
-        const masteredPercent = Math.min(100, Math.round((courseMastered / totalWords) * 100));
+    activeUserProgressRef.current = nextProgress;
+    saveStoredVocabProgress(nextProgress, currentUser?.id);
 
-        return {
-          ...c,
-          subdecks: updatedSubdecks,
-          learnedPercent,
-          masteredPercent
-        };
-      })
-    );
+    // Immediate sync to server
+    syncProgressToServer({
+      vocabProgress: {
+        topicState: { [subdeckId]: updatedTopic },
+        lastActiveTopicId: subdeckId
+      }
+    });
+
+    // Update local vocabCourses state with new resume position
+    setVocabCourses((prev) => applyVocabProgressToCourses(prev, nextProgress));
   };
 
   // Batch save deck session progress (e.g., when exiting or finishing words)
   const handleSaveDeckSession = (subdeckId, cardUpdatesMap = {}) => {
-    // 1. Update standalone vocabProgress map
-    const progressMap = getStoredVocabProgress();
+    const progressMap = activeUserProgressRef.current || getStoredVocabProgress(currentUser?.id);
+    const existingLearned = progressMap.learnedWords || {};
+    const mergedLearned = { ...existingLearned };
+
     for (const [cId, updates] of Object.entries(cardUpdatesMap)) {
-      const existing = progressMap[cId] || {};
-      progressMap[cId] = {
+      const existing = mergedLearned[cId] || progressMap[cId] || {};
+      const updated = {
         ...existing,
         ...updates,
         id: cId,
         lastStudiedAt: updates.lastStudiedAt || Date.now(),
         nextReviewAt: updates.nextReviewAt !== undefined ? updates.nextReviewAt : (updates.intervalDays ? Date.now() + updates.intervalDays * 86400000 : null)
       };
-    }
-    saveStoredVocabProgress(progressMap);
-
-    // Sync batch deck progress to PostgreSQL if logged in
-    if (currentUser) {
-      userApi.updateProgress({ vocabProgress: cardUpdatesMap }).catch(() => {});
+      mergedLearned[cId] = updated;
+      progressMap[cId] = updated;
     }
 
-    // 2. Update vocabCourses
-    setVocabCourses((prev) =>
-      prev.map((c) => {
-        const hasSubdeck = c.subdecks?.some((s) => s.id === subdeckId);
-        if (!hasSubdeck) return c;
+    const nextProgress = {
+      ...progressMap,
+      ...cardUpdatesMap,
+      learnedWords: mergedLearned
+    };
 
-        const updatedSubdecks = c.subdecks.map((s) => {
-          if (s.id !== subdeckId) return s;
+    activeUserProgressRef.current = nextProgress;
+    saveStoredVocabProgress(nextProgress, currentUser?.id);
 
-          const updatedCards = (s.cards || []).map((card) => {
-            if (cardUpdatesMap[card.id]) {
-              return { ...card, ...cardUpdatesMap[card.id] };
-            }
-            return card;
-          });
+    // Sync to PostgreSQL immediately
+    syncProgressToServer({
+      vocabProgress: {
+        ...cardUpdatesMap,
+        learnedWords: cardUpdatesMap
+      }
+    });
 
-          const masteredCount = updatedCards.filter((card) => card.status === 'mastered').length;
-          const learningCount = updatedCards.filter((card) => card.status === 'learning' || card.status === 'weak').length;
-          const dueCount = updatedCards.filter((card) =>
-            (card.status === 'learning' || card.status === 'weak') &&
-            ((card.nextReviewAt && card.nextReviewAt <= Date.now()) || card.due)
-          ).length;
-          const totalWords = s.totalWords || updatedCards.length || 50;
-          const progressPercent = Math.min(100, Math.round((masteredCount / totalWords) * 100));
-
-          const nextSubdeck = {
-            ...s,
-            cards: updatedCards,
-            masteredCount,
-            learningCount,
-            dueCount,
-            progressPercent,
-            lastStudied: 'Hôm nay'
-          };
-          delete nextSubdeck.lastStudiedIndex; // Remove static index
-          return nextSubdeck;
-        });
-
-        const allCards = updatedSubdecks.flatMap((s) => s.cards || []);
-        const courseMastered = allCards.filter((card) => card.status === 'mastered').length;
-        const courseLearning = allCards.filter((card) => card.status === 'learning' || card.status === 'weak').length;
-        const courseStudied = courseMastered + courseLearning;
-        const totalWords = c.totalWords || allCards.length || 1000;
-        const learnedPercent = Math.min(100, Math.round((courseStudied / totalWords) * 100));
-        const masteredPercent = Math.min(100, Math.round((courseMastered / totalWords) * 100));
-
-        return {
-          ...c,
-          subdecks: updatedSubdecks,
-          learnedPercent,
-          masteredPercent
-        };
-      })
-    );
+    setVocabCourses((prev) => applyVocabProgressToCourses(prev, nextProgress));
   };
 
   // Reset to fresh v4 curriculum
@@ -631,7 +663,7 @@ export default function App() {
     showToast('✨ Đã làm mới 6 khóa từ vựng & 3 lộ trình ngữ pháp chuẩn v4.0!');
   };
 
-  // Live synchronized active deck object with preserved session mode and initialCardId
+  // Live synchronized active deck object with preserved session mode, lastWordIndex, and lastStep
   const activeDeckObject = useMemo(() => {
     if (!activePracticeDeck) return null;
     for (const c of vocabCourses) {
@@ -642,7 +674,9 @@ export default function App() {
           courseId: c.id,
           courseTitle: c.title,
           mode: activePracticeDeck.mode || 'learn_new',
-          initialCardId: activePracticeDeck.initialCardId || null
+          initialCardId: activePracticeDeck.initialCardId || null,
+          lastWordIndex: activePracticeDeck.lastWordIndex !== undefined ? activePracticeDeck.lastWordIndex : (found.lastWordIndex || 0),
+          lastStep: activePracticeDeck.lastStep !== undefined ? activePracticeDeck.lastStep : (found.lastStep || 1)
         };
       }
     }
@@ -710,6 +744,7 @@ export default function App() {
               onAwardXP={awardXP}
               onUpdateCardSRS={handleUpdateCardSRS}
               onSaveDeckSession={handleSaveDeckSession}
+              onSaveTopicProgress={handleSaveTopicProgress}
               onMarkCardMastered={(cardId, srsPayload) => {
                 handleUpdateCardSRS(
                   cardId,
@@ -736,6 +771,7 @@ export default function App() {
                   grammarCourses={grammarCourses}
                   roadmapStages={INITIAL_ROADMAP_STAGES}
                   allCards={allCards}
+                  lastActiveTopicId={activeUserProgressRef.current?.lastActiveTopicId}
                   onNavigateTab={handleNavigateTab}
                   onStartPracticeDeck={handleStartPracticeDeck}
                   onSpeak={speakText}

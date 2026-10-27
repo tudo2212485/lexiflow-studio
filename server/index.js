@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 import { initDatabase, ensureDbInitialized, pool } from './db.js';
 import { syncEnv } from '../scripts/syncEnv.js';
 import authRoutes from './routes/auth.js';
-import userRoutes from './routes/user.js';
+import userRoutes, { getProgressHandler, updateProgressHandler } from './routes/user.js';
+import { authenticateToken } from './middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,6 +79,14 @@ app.use('/auth', authRoutes);
 
 app.use('/api/user', userRoutes);
 app.use('/user', userRoutes);
+
+// Direct /api/progress and /progress aliases for study progress
+app.get('/api/progress', authenticateToken, getProgressHandler);
+app.get('/progress', authenticateToken, getProgressHandler);
+app.post('/api/progress', authenticateToken, updateProgressHandler);
+app.post('/progress', authenticateToken, updateProgressHandler);
+app.put('/api/progress', authenticateToken, updateProgressHandler);
+app.put('/progress', authenticateToken, updateProgressHandler);
 
 // 404 handler for API routes
 app.use('/api', (req, res) => {
