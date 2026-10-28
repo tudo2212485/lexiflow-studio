@@ -47,6 +47,8 @@ function normalizePhone(rawPhone) {
   return cleaned;
 }
 
+import { safeJsonParse } from './user.js';
+
 // Helper: validate Vietnamese phone number (10 digits: 03, 05, 07, 08, 09)
 function isValidVNPhone(phone) {
   const normalized = normalizePhone(phone);
@@ -65,6 +67,90 @@ function generateToken(user) {
     JWT_SECRET,
     { expiresIn: '30d' }
   );
+}
+
+// Helper to return complete user profile, progress, and notebooks in a single response upon auth
+async function getFullUserAuthPayload(user, token, message = 'Đăng nhập thành công!') {
+  // 1. Fetch user from users and user_progress simultaneously to never lose XP
+  const [userDbRes, progressRes] = await Promise.all([
+    query(`SELECT id, full_name, email, phone, avatar_url, xp, streak FROM users WHERE id = $1`, [user.id]),
+    query(
+      `SELECT xp, streak, level, daily_goal_minutes, studied_minutes_today, accent, vocab_progress, grammar_progress
+       FROM user_progress
+       WHERE user_id = $1`,
+      [user.id]
+    )
+  ]);
+
+  const userRow = userDbRes.rows[0] || user;
+  let progress = progressRes.rows[0];
+  if (!progress) {
+    await initializeUserData(user.id);
+    const freshRes = await query(
+      `SELECT xp, streak, level, daily_goal_minutes, studied_minutes_today, accent, vocab_progress, grammar_progress
+       FROM user_progress
+       WHERE user_id = $1`,
+      [user.id]
+    );
+    progress = freshRes.rows[0] || {};
+  }
+
+  // 2. Fetch user_notebooks
+  const notebooksRes = await query(
+    `SELECT id, term, phonetic, meaning, example, tag, created_at as "createdAt"
+     FROM user_notebooks
+     WHERE user_id = $1
+     ORDER BY created_at DESC`,
+    [user.id]
+  );
+
+  const safeXP = Math.max(Number(userRow.xp || 0), Number(progress?.xp || 0));
+  const safeStreak = Math.max(Number(userRow.streak || 1), Number(progress?.streak || 1));
+  const safeLevel = Math.max(Number(progress?.level || 1), Math.floor(safeXP / 300) + 1);
+
+  const vocabProgress = safeJsonParse(progress?.vocab_progress, {});
+  const grammarProgress = safeJsonParse(progress?.grammar_progress, {});
+
+  return {
+    success: true,
+    message,
+    ...(token ? { token } : {}),
+    user: {
+      id: userRow.id,
+      email: userRow.email,
+      phone: userRow.phone,
+      fullName: userRow.full_name || userRow.fullName,
+      avatarUrl: userRow.avatar_url || userRow.avatarUrl,
+      xp: safeXP,
+      streak: safeStreak,
+      level: safeLevel,
+      dailyGoalMinutes: progress?.daily_goal_minutes || 30,
+      studiedMinutesToday: progress?.studied_minutes_today || 0,
+      accent: progress?.accent || 'en-US'
+    },
+    profile: {
+      id: userRow.id,
+      email: userRow.email,
+      phone: userRow.phone,
+      fullName: userRow.full_name || userRow.fullName,
+      name: userRow.full_name || userRow.fullName,
+      avatarUrl: userRow.avatar_url || userRow.avatarUrl,
+      xp: safeXP,
+      streak: safeStreak,
+      level: safeLevel,
+      dailyGoalMinutes: progress?.daily_goal_minutes || 30,
+      studiedMinutesToday: progress?.studied_minutes_today || 0,
+      accent: progress?.accent || 'en-US'
+    },
+    xp: safeXP,
+    streak: safeStreak,
+    level: safeLevel,
+    vocab_progress: vocabProgress,
+    vocabProgress: vocabProgress,
+    grammar_progress: grammarProgress,
+    grammarProgress: grammarProgress,
+    notebooks: notebooksRes.rows || []
+  };
 }
 
 // Helper: create nodemailer transporter with sanitized SMTP_EMAIL and SMTP_APP_PASSWORD
@@ -451,7 +537,7 @@ router.post('/verify-otp', async (req, res) => {
            otp_expires_at = NULL,
            updated_at = CURRENT_TIMESTAMP 
        WHERE id = $1
-       RETURNING id, full_name, email, phone, avatar_url`,
+       RETURNING id, full_name, email, phone, avatar_url, xp, streak`,
       [user.id]
     );
 
@@ -465,18 +551,12 @@ router.post('/verify-otp', async (req, res) => {
 
     console.log(`[AUTH SUCCESS] User #${verifiedUser.id} (${verifiedUser.email || verifiedUser.phone}) đã được xác thực thành công trong PostgreSQL!`);
 
-    return res.json({
-      success: true,
-      message: 'Xác minh tài khoản thành công! Chào mừng bạn đến với LexiFlow Studio.',
+    const payload = await getFullUserAuthPayload(
+      verifiedUser,
       token,
-      user: {
-        id: verifiedUser.id,
-        email: verifiedUser.email,
-        phone: verifiedUser.phone,
-        fullName: verifiedUser.full_name,
-        avatarUrl: verifiedUser.avatar_url
-      }
-    });
+      'Xác minh tài khoản thành công! Chào mừng bạn đến với LexiFlow Studio.'
+    );
+    return res.json(payload);
   } catch (err) {
     console.error('[Verify OTP Error]:', err);
     return res.status(500).json({
@@ -513,7 +593,7 @@ router.post('/login', async (req, res) => {
 
     // Direct query to PostgreSQL users table
     const userRes = await query(
-      `SELECT id, email, phone, password_hash, full_name, avatar_url, auth_provider, is_verified, otp_code, otp_expires_at
+      `SELECT id, email, phone, password_hash, full_name, avatar_url, auth_provider, is_verified, otp_code, otp_expires_at, xp, streak
        FROM users 
        WHERE (email = $1 AND $1 IS NOT NULL) 
           OR (phone = $2 AND $2 IS NOT NULL)`,
@@ -576,18 +656,8 @@ router.post('/login', async (req, res) => {
 
     const token = generateToken(user);
 
-    return res.json({
-      success: true,
-      message: 'Đăng nhập thành công!',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        phone: user.phone,
-        fullName: user.full_name,
-        avatarUrl: user.avatar_url
-      }
-    });
+    const payload = await getFullUserAuthPayload(user, token, 'Đăng nhập thành công!');
+    return res.json(payload);
   } catch (err) {
     console.error('[Auth Login Error]:', err);
     return res.status(500).json({
@@ -687,7 +757,7 @@ router.post('/google', async (req, res) => {
 
     // Direct query to PostgreSQL
     const userRes = await query(
-      `SELECT id, email, phone, full_name, avatar_url, google_id 
+      `SELECT id, email, phone, full_name, avatar_url, google_id, xp, streak 
        FROM users 
        WHERE email = $1 OR (google_id = $2 AND google_id IS NOT NULL)`,
       [normalizedEmail, gId || '']
@@ -704,7 +774,7 @@ router.post('/google', async (req, res) => {
              is_verified = true,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $3
-         RETURNING id, full_name, email, phone, avatar_url`,
+         RETURNING id, full_name, email, phone, avatar_url, xp, streak`,
         [gId, finalAvatar, user.id]
       );
       user = updRes.rows[0];
@@ -712,7 +782,7 @@ router.post('/google', async (req, res) => {
       const insertRes = await query(
         `INSERT INTO users (full_name, email, avatar_url, google_id, is_verified, auth_provider)
          VALUES ($1, $2, $3, $4, true, 'google')
-         RETURNING id, full_name, email, phone, avatar_url`,
+         RETURNING id, full_name, email, phone, avatar_url, xp, streak`,
         [finalName, normalizedEmail, finalAvatar, gId]
       );
       user = insertRes.rows[0];
@@ -721,18 +791,8 @@ router.post('/google', async (req, res) => {
 
     const token = generateToken(user);
 
-    return res.json({
-      success: true,
-      message: 'Đăng nhập bằng tài khoản Google thành công!',
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        phone: user.phone,
-        fullName: user.full_name,
-        avatarUrl: user.avatar_url || finalAvatar
-      }
-    });
+    const payload = await getFullUserAuthPayload(user, token, 'Đăng nhập bằng tài khoản Google thành công!');
+    return res.json(payload);
   } catch (err) {
     console.error('[Google Auth Error]:', err);
     return res.status(500).json({
@@ -746,10 +806,15 @@ router.post('/google', async (req, res) => {
  * 5. GET /api/auth/me
  */
 router.get('/me', authenticateToken, async (req, res) => {
-  return res.json({
-    success: true,
-    user: req.user
-  });
+  try {
+    const payload = await getFullUserAuthPayload(req.user, null, 'Xác thực thành công');
+    return res.json(payload);
+  } catch (err) {
+    return res.json({
+      success: true,
+      user: req.user
+    });
+  }
 });
 
 export default router;

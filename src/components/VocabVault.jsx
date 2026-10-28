@@ -158,7 +158,9 @@ export default function VocabVault({
   onSpeak,
   onPinNote,
   onAwardXP,
-  onUpdateCardSRS
+  onUpdateCardSRS,
+  starredCardIds: propStarredCardIds,
+  onToggleStar: propOnToggleStar
 }) {
   // Navigation state: Level 1 (Course Grid) | Level 2 (Sub-decks List) | Level 3 (Sub-deck Study)
   const [selectedCourseId, setSelectedCourseId] = useState(controlledCourseId || vocabCourses[0]?.id || 'course-1000-common');
@@ -187,8 +189,8 @@ export default function VocabVault({
   const [activeModal, setActiveModal] = useState(null); // 'quiz' | 'dictation' | 'topic_review' | 'ai_call' | etc.
   const [filterModalMode, setFilterModalMode] = useState('mix'); // 'mix' | 'filter'
 
-  // Starred / Bookmarked Cards (Persisted in localStorage)
-  const [starredCardIds, setStarredCardIds] = useState(() => {
+  // Starred / Bookmarked Cards (persisted locally and synced with parent cloud state)
+  const [localStarredCardIds, setLocalStarredCardIds] = useState(() => {
     try {
       const raw = localStorage.getItem('lexiflow_starred_words');
       const parsed = raw ? JSON.parse(raw) : [];
@@ -198,8 +200,8 @@ export default function VocabVault({
     }
   });
 
-  const handleToggleStar = (cardId) => {
-    setStarredCardIds((prev) => {
+  const localHandleToggleStar = (cardId) => {
+    setLocalStarredCardIds((prev) => {
       const currentList = Array.isArray(prev) ? prev : [];
       const exists = currentList.includes(cardId);
       const updated = exists ? currentList.filter((id) => id !== cardId) : [...currentList, cardId];
@@ -209,6 +211,9 @@ export default function VocabVault({
       return updated;
     });
   };
+
+  const starredCardIds = propStarredCardIds !== undefined ? propStarredCardIds : localStarredCardIds;
+  const handleToggleStar = propOnToggleStar || localHandleToggleStar;
 
   // Current selected course object
   const currentCourse = useMemo(() => {

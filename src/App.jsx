@@ -66,6 +66,195 @@ export function getUserProgressKey(userId) {
   return userId ? `lexiflow_progress_${userId}` : 'lexiflow_vocab_progress_v2';
 }
 
+/**
+ * Deep merge helper for vocab_progress on Client
+ * Anti-downgrade: preserves mastered cards, review counts, topic index, and starred cards
+ */
+export function mergeClientVocabProgress(base = {}, overlay = {}) {
+  const b = (base && typeof base === 'object') ? base : {};
+  const o = (overlay && typeof overlay === 'object') ? overlay : {};
+
+  const baseLearned = (b.learnedWords && typeof b.learnedWords === 'object') ? b.learnedWords : {};
+  const overlayLearned = (o.learnedWords && typeof o.learnedWords === 'object') ? o.learnedWords : {};
+
+  const mergedLearned = { ...b, ...baseLearned };
+  for (const [k, v] of Object.entries(o)) {
+    if (
+      k !== 'learnedWords' &&
+      k !== 'topicState' &&
+      k !== 'lastActiveTopicId' &&
+      k !== 'starredWords' &&
+      k !== 'starredCardIds' &&
+      v &&
+      typeof v === 'object'
+    ) {
+      mergedLearned[k] = { ...(mergedLearned[k] || {}), ...v };
+    }
+  }
+  for (const [k, v] of Object.entries(overlayLearned)) {
+    if (v && typeof v === 'object') {
+      const cur = mergedLearned[k] || {};
+      const isMastered = cur.status === 'mastered' || v.status === 'mastered';
+      mergedLearned[k] = {
+        ...cur,
+        ...v,
+        status: isMastered ? 'mastered' : (v.status || cur.status || 'learning'),
+        stepCompleted: Math.max(Number(cur.stepCompleted || 0), Number(v.stepCompleted || 0)),
+        reviewCount: Math.max(Number(cur.reviewCount || 0), Number(v.reviewCount || 0)),
+        intervalDays: Math.max(Number(cur.intervalDays || 0), Number(v.intervalDays || 0)),
+        lastStudiedAt: Math.max(Number(cur.lastStudiedAt || 0), Number(v.lastStudiedAt || 0), Date.now()),
+        nextReviewAt: v.nextReviewAt !== undefined ? v.nextReviewAt : (cur.nextReviewAt || null)
+      };
+    }
+  }
+
+  const baseTopics = (b.topicState && typeof b.topicState === 'object') ? b.topicState : {};
+  const overlayTopics = (o.topicState && typeof o.topicState === 'object') ? o.topicState : {};
+  const mergedTopics = { ...baseTopics };
+
+  for (const [tId, tData] of Object.entries(overlayTopics)) {
+    if (tData && typeof tData === 'object') {
+      const cur = baseTopics[tId] || {};
+      mergedTopics[tId] = {
+        ...cur,
+        ...tData,
+        lastWordIndex: Math.max(Number(cur.lastWordIndex || 0), Number(tData.lastWordIndex || 0)),
+        lastStep: Math.max(Number(cur.lastStep || 1), Number(tData.lastStep || 1)),
+        completedWordIds: Array.from(new Set([...(cur.completedWordIds || []), ...(tData.completedWordIds || [])])),
+        updatedAt: tData.updatedAt || cur.updatedAt || new Date().toISOString()
+      };
+    }
+  }
+
+  const baseStarred = Array.isArray(b.starredWords) ? b.starredWords : (Array.isArray(b.starredCardIds) ? b.starredCardIds : []);
+  const overlayStarred = Array.isArray(o.starredWords) ? o.starredWords : (Array.isArray(o.starredCardIds) ? o.starredCardIds : []);
+  const mergedStarred = Array.from(new Set([...baseStarred, ...overlayStarred]));
+
+  return {
+    ...mergedLearned,
+    learnedWords: mergedLearned,
+    topicState: mergedTopics,
+    starredWords: mergedStarred,
+    starredCardIds: mergedStarred,
+    lastActiveTopicId: o.lastActiveTopicId || b.lastActiveTopicId || null
+  };
+}
+
+// User-scoped vocab progress storage helpers
+export function getStoredVocabProgress(userId) {
+  try {
+    const key = getUserProgressKey(userId);
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object') ? parsed : {};
+    }
+    const legacy = localStorage.getItem('lexiflow_vocab_progress_v2');
+    if (legacy) {
+      const parsedLegacy = JSON.parse(legacy);
+      return (parsedLegacy && typeof parsedLegacy === 'object') ? parsedLegacy : {};
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveStoredVocabProgress(map, userId) {
+  try {
+    const key = getUserProgressKey(userId);
+    localStorage.setItem(key, JSON.stringify(map || {}));
+  } catch {}
+}
+
+/**
+ * Local permanent backup helper keyed by email and userId
+ * Ensures that even if the user logs out and logs back in, client progress is never wiped
+ */
+export function getLocalBackup(userId, email) {
+  try {
+    const candidates = [];
+    if (email) {
+      const byEmail = localStorage.getItem(`lexiflow_backup_${email.trim().toLowerCase()}`);
+      if (byEmail) candidates.push(JSON.parse(byEmail));
+    }
+    if (userId) {
+      const byId = localStorage.getItem(`lexiflow_backup_${userId}`);
+      if (byId) candidates.push(JSON.parse(byId));
+      const statsById = localStorage.getItem(`lexiflow_stats_${userId}`);
+      if (statsById) {
+        const parsedStats = JSON.parse(statsById);
+        const prog = getStoredVocabProgress(userId);
+        candidates.push({ ...parsedStats, vocabProgress: prog });
+      }
+    }
+    const legacyStats = localStorage.getItem('lexiflow_v4_stats');
+    if (legacyStats) {
+      const parsedLegacy = JSON.parse(legacyStats);
+      const prog = getStoredVocabProgress();
+      candidates.push({ ...parsedLegacy, vocabProgress: prog });
+    }
+
+    if (candidates.length === 0) return null;
+
+    let maxXP = 0;
+    let maxStreak = 1;
+    let maxLevel = 1;
+    let bestName = 'Học viên';
+    let mergedVocab = {};
+    let studyNotes = [];
+
+    for (const c of candidates) {
+      if (!c || typeof c !== 'object') continue;
+      const xp = Number(c.xp || 0);
+      if (xp > maxXP) maxXP = xp;
+      const streak = Number(c.streak || 1);
+      if (streak > maxStreak) maxStreak = streak;
+      const level = Number(c.level || 1);
+      if (level > maxLevel) maxLevel = level;
+      if (c.name && c.name !== 'Học viên') bestName = c.name;
+      if (c.vocabProgress) {
+        mergedVocab = mergeClientVocabProgress(mergedVocab, c.vocabProgress);
+      }
+      if (Array.isArray(c.studyNotes) && c.studyNotes.length > studyNotes.length) {
+        studyNotes = c.studyNotes;
+      }
+    }
+
+    return {
+      xp: maxXP,
+      streak: maxStreak,
+      level: Math.max(maxLevel, Math.floor(maxXP / 300) + 1),
+      name: bestName,
+      vocabProgress: mergedVocab,
+      studyNotes
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocalBackup(userId, email, data = {}) {
+  try {
+    const payload = JSON.stringify({
+      ...data,
+      savedAt: Date.now()
+    });
+    if (email) {
+      localStorage.setItem(`lexiflow_backup_${email.trim().toLowerCase()}`, payload);
+    }
+    if (userId) {
+      localStorage.setItem(`lexiflow_backup_${userId}`, payload);
+      localStorage.setItem(`lexiflow_stats_${userId}`, JSON.stringify({
+        xp: data.xp,
+        streak: data.streak,
+        level: data.level,
+        name: data.name
+      }));
+    }
+  } catch {}
+}
+
 // Helper to overlay progress and topic resume state onto courses
 export function applyVocabProgressToCourses(baseCourses, progressMap) {
   if (!progressMap || Object.keys(progressMap).length === 0) {
@@ -118,33 +307,6 @@ export function applyVocabProgressToCourses(baseCourses, progressMap) {
       };
     })
   }));
-}
-
-// User-scoped vocab progress storage helpers
-export function getStoredVocabProgress(userId) {
-  try {
-    const key = getUserProgressKey(userId);
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return (parsed && typeof parsed === 'object') ? parsed : {};
-    }
-    const legacy = localStorage.getItem('lexiflow_vocab_progress_v2');
-    if (legacy) {
-      const parsedLegacy = JSON.parse(legacy);
-      return (parsedLegacy && typeof parsedLegacy === 'object') ? parsedLegacy : {};
-    }
-    return {};
-  } catch {
-    return {};
-  }
-}
-
-export function saveStoredVocabProgress(map, userId) {
-  try {
-    const key = getUserProgressKey(userId);
-    localStorage.setItem(key, JSON.stringify(map || {}));
-  } catch {}
 }
 
 export default function App() {
@@ -233,24 +395,110 @@ export default function App() {
   // User Authentication & PostgreSQL Cloud Sync State
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('synced'); // 'synced' | 'saving' | 'error'
 
   // Server Hydration Guard: Prevents auto-saves from writing empty default state to database
   const isHydratedFromServer = useRef(false);
   const activeUserProgressRef = useRef({});
+  const pendingSavePayloadRef = useRef(null);
+  const isSavingRef = useRef(false);
 
-  // Direct Server Sync Helper with Hydration Guard
-  const syncProgressToServer = async (payload = {}) => {
+  // Queue-coalesced direct sync to PostgreSQL to eliminate race conditions
+  const flushSyncQueue = async () => {
+    if (isSavingRef.current || !pendingSavePayloadRef.current) return;
     const token = getStoredToken();
-    if (!token || !currentUser) return;
-    if (!isHydratedFromServer.current) {
-      console.warn('[Sync Guard] Bỏ qua sync vì chưa hoàn tất hydrate từ Server');
+    if (!token || !currentUser || !isHydratedFromServer.current) {
+      pendingSavePayloadRef.current = null;
       return;
     }
 
+    const payload = pendingSavePayloadRef.current;
+    pendingSavePayloadRef.current = null;
+    isSavingRef.current = true;
+    setSyncStatus('saving');
+
     try {
       await userApi.updateProgress(payload);
+      setSyncStatus('synced');
     } catch (err) {
-      console.warn('[Sync Error] Không thể lưu tiến độ lên Server:', err.message);
+      console.error('[PostgreSQL Sync Error]:', err);
+      setSyncStatus('error');
+    } finally {
+      isSavingRef.current = false;
+      if (pendingSavePayloadRef.current) {
+        flushSyncQueue();
+      }
+    }
+  };
+
+  // Direct Server Sync Helper that always bundles full snapshot (XP, streak, level, vocabProgress, topicState)
+  const syncProgressToServer = (customPayload = {}) => {
+    const token = getStoredToken();
+    if (!token || !currentUser || !isHydratedFromServer.current) {
+      return;
+    }
+
+    const currentVocab = activeUserProgressRef.current || getStoredVocabProgress(currentUser?.id) || {};
+    const mergedVocab = customPayload.vocabProgress
+      ? mergeClientVocabProgress(currentVocab, customPayload.vocabProgress)
+      : currentVocab;
+
+    const currentXP = customPayload.xp !== undefined ? Number(customPayload.xp) : (Number(userStats.xp) || 0);
+    const currentLevel = customPayload.level !== undefined ? Number(customPayload.level) : (Number(userStats.level) || 1);
+    const currentStreak = customPayload.streak !== undefined ? Number(customPayload.streak) : (Number(userStats.streak) || 1);
+
+    const fullPayload = {
+      xp: currentXP,
+      level: currentLevel,
+      streak: currentStreak,
+      vocabProgress: mergedVocab,
+      vocab_progress: mergedVocab,
+      topicState: mergedVocab.topicState || {},
+      lastActiveTopicId: mergedVocab.lastActiveTopicId || null,
+      ...customPayload
+    };
+
+    // Update pending queue with latest merged snapshot
+    pendingSavePayloadRef.current = {
+      ...(pendingSavePayloadRef.current || {}),
+      ...fullPayload,
+      vocabProgress: mergeClientVocabProgress(
+        pendingSavePayloadRef.current?.vocabProgress || {},
+        fullPayload.vocabProgress
+      )
+    };
+
+    // Save to local backup simultaneously for immediate durability
+    saveLocalBackup(currentUser.id, currentUser.email, {
+      xp: currentXP,
+      level: currentLevel,
+      streak: currentStreak,
+      name: currentUser.fullName,
+      vocabProgress: mergedVocab,
+      studyNotes
+    });
+
+    flushSyncQueue();
+  };
+
+  // Manual retry handler if sync error occurred
+  const handleRetrySync = async () => {
+    const token = getStoredToken();
+    if (!currentUser || !token) return;
+    try {
+      setSyncStatus('saving');
+      await userApi.updateProgress({
+        xp: userStats.xp,
+        level: userStats.level,
+        streak: userStats.streak,
+        vocabProgress: activeUserProgressRef.current || {}
+      });
+      setSyncStatus('synced');
+      showToast('✅ Đã lưu tiến độ học tập vào tài khoản thành công!');
+    } catch (err) {
+      console.error('[Retry Sync Error]:', err);
+      setSyncStatus('error');
+      showToast('⚠️ Không thể kết nối máy chủ. Vui lòng kiểm tra lại đường truyền mạng.');
     }
   };
 
@@ -269,36 +517,74 @@ export default function App() {
 
     userApi.getProgress()
       .then((data) => {
-        if (data?.profile) {
+        if (data?.profile || data?.user) {
+          const profile = data.profile || data.user;
           const userObj = {
-            id: data.profile.id,
-            fullName: data.profile.fullName || data.profile.name,
-            email: data.profile.email,
-            avatarUrl: data.profile.avatarUrl
+            id: profile.id,
+            fullName: profile.fullName || profile.name,
+            email: profile.email,
+            avatarUrl: profile.avatarUrl
           };
           setCurrentUser(userObj);
+
+          // Retrieve local backup by id and email
+          const localBackup = getLocalBackup(userObj.id, userObj.email);
+
+          const serverXP = data.xp !== undefined ? Number(data.xp) : (Number(profile.xp) || 0);
+          const backupXP = Number(localBackup?.xp || 0);
+          const safeXP = Math.max(serverXP, backupXP);
+
+          const serverStreak = data.streak !== undefined ? Number(data.streak) : (Number(profile.streak) || 1);
+          const backupStreak = Number(localBackup?.streak || 1);
+          const safeStreak = Math.max(serverStreak, backupStreak);
+
+          const serverLevel = data.level !== undefined ? Number(data.level) : (Number(profile.level) || 1);
+          const backupLevel = Number(localBackup?.level || 1);
+          const safeLevel = Math.max(serverLevel, backupLevel, Math.floor(safeXP / 300) + 1);
+
+          const finalName = userObj.fullName || localBackup?.name || profile.name || 'Học viên';
+
           setUserStats((prev) => ({
             ...prev,
-            ...data.profile,
-            xp: data.xp !== undefined ? data.xp : (data.profile.xp || 0),
-            streak: data.streak !== undefined ? data.streak : (data.profile.streak || 1),
-            level: data.level !== undefined ? data.level : (data.profile.level || 1),
-            name: data.profile.fullName || prev.name
+            ...profile,
+            name: finalName,
+            xp: safeXP,
+            streak: safeStreak,
+            level: safeLevel
           }));
 
-          const rawVocab = data.vocabProgress || {};
-          activeUserProgressRef.current = rawVocab;
-          saveStoredVocabProgress(rawVocab, userObj.id);
-          setVocabCourses(applyVocabProgressToCourses(getFreshVocabCourses(), rawVocab));
+          const serverVocab = data.vocabProgress || data.vocab_progress || {};
+          const backupVocab = localBackup?.vocabProgress || getStoredVocabProgress(userObj.id) || {};
+          const mergedVocab = mergeClientVocabProgress(backupVocab, serverVocab);
 
-          try {
-            localStorage.setItem(`lexiflow_stats_${userObj.id}`, JSON.stringify(data.profile));
-          } catch {}
+          activeUserProgressRef.current = mergedVocab;
+          saveStoredVocabProgress(mergedVocab, userObj.id);
+          saveLocalBackup(userObj.id, userObj.email, {
+            xp: safeXP,
+            streak: safeStreak,
+            level: safeLevel,
+            name: finalName,
+            vocabProgress: mergedVocab,
+            studyNotes: (data.notebooks && data.notebooks.length > 0) ? data.notebooks : (localBackup?.studyNotes || [])
+          });
+
+          setVocabCourses(applyVocabProgressToCourses(getFreshVocabCourses(), mergedVocab));
+
+          // If local backup was ahead of server, reconcile to server
+          if (safeXP > serverXP || Object.keys(mergedVocab.learnedWords || {}).length > Object.keys(serverVocab.learnedWords || {}).length) {
+            userApi.updateProgress({
+              xp: safeXP,
+              streak: safeStreak,
+              level: safeLevel,
+              vocabProgress: mergedVocab
+            }).catch((e) => console.warn('[Auto-reconcile on mount notice]:', e.message));
+          }
         }
         if (data?.notebooks && Array.isArray(data.notebooks)) {
           setStudyNotes(data.notebooks);
         }
         isHydratedFromServer.current = true;
+        setSyncStatus('synced');
         console.log('✅ [Hydration] Hydrated complete user progress from PostgreSQL');
       })
       .catch((err) => {
@@ -318,59 +604,127 @@ export default function App() {
   const handleAuthSuccess = (user, syncData) => {
     isHydratedFromServer.current = false;
     setCurrentUser(user);
-    if (syncData?.profile) {
-      setUserStats((prev) => ({
-        ...prev,
-        ...syncData.profile,
-        xp: syncData.xp !== undefined ? syncData.xp : (syncData.profile.xp || 0),
-        streak: syncData.streak !== undefined ? syncData.streak : (syncData.profile.streak || 1),
-        level: syncData.level !== undefined ? syncData.level : (syncData.profile.level || 1),
-        name: syncData.profile.fullName || prev.name
-      }));
-    } else if (user?.fullName) {
-      setUserStats((prev) => ({ ...prev, name: user.fullName }));
-    }
-    if (syncData?.notebooks && Array.isArray(syncData.notebooks)) {
+
+    // Retrieve local backup by id and email
+    const localBackup = getLocalBackup(user?.id, user?.email);
+
+    const serverXP = syncData?.xp !== undefined ? Number(syncData.xp) : (Number(syncData?.profile?.xp) || Number(user?.xp) || 0);
+    const backupXP = Number(localBackup?.xp || 0);
+    const finalXP = Math.max(serverXP, backupXP);
+
+    const serverStreak = syncData?.streak !== undefined ? Number(syncData.streak) : (Number(syncData?.profile?.streak) || Number(user?.streak) || 1);
+    const backupStreak = Number(localBackup?.streak || 1);
+    const finalStreak = Math.max(serverStreak, backupStreak);
+
+    const serverLevel = syncData?.level !== undefined ? Number(syncData.level) : (Number(syncData?.profile?.level) || Number(user?.level) || 1);
+    const backupLevel = Number(localBackup?.level || 1);
+    const finalLevel = Math.max(serverLevel, backupLevel, Math.floor(finalXP / 300) + 1);
+
+    const name = user?.fullName || syncData?.profile?.fullName || syncData?.profile?.name || localBackup?.name || 'Học viên';
+
+    setUserStats((prev) => ({
+      ...prev,
+      ...(syncData?.profile || {}),
+      name,
+      xp: finalXP,
+      streak: finalStreak,
+      level: finalLevel
+    }));
+
+    if (syncData?.notebooks && Array.isArray(syncData.notebooks) && syncData.notebooks.length > 0) {
       setStudyNotes(syncData.notebooks);
+    } else if (localBackup?.studyNotes && Array.isArray(localBackup.studyNotes)) {
+      setStudyNotes(localBackup.studyNotes);
     }
-    const rawVocab = syncData?.vocabProgress || {};
-    activeUserProgressRef.current = rawVocab;
-    saveStoredVocabProgress(rawVocab, user?.id);
-    setVocabCourses(applyVocabProgressToCourses(getFreshVocabCourses(), rawVocab));
+
+    const serverVocab = syncData?.vocabProgress || syncData?.vocab_progress || {};
+    const backupVocab = localBackup?.vocabProgress || getStoredVocabProgress(user?.id) || {};
+    const mergedVocab = mergeClientVocabProgress(backupVocab, serverVocab);
+
+    activeUserProgressRef.current = mergedVocab;
+    saveStoredVocabProgress(mergedVocab, user?.id);
+    saveLocalBackup(user?.id, user?.email, {
+      xp: finalXP,
+      streak: finalStreak,
+      level: finalLevel,
+      name,
+      vocabProgress: mergedVocab,
+      studyNotes: (syncData?.notebooks && syncData.notebooks.length > 0) ? syncData.notebooks : (localBackup?.studyNotes || [])
+    });
+
+    setVocabCourses(applyVocabProgressToCourses(getFreshVocabCourses(), mergedVocab));
     isHydratedFromServer.current = true;
-    console.log('✅ [Login Hydration] Progress successfully hydrated for user:', user?.email);
+    setSyncStatus('synced');
+
+    // If local backup had higher progress than server, sync back immediately
+    if (finalXP > serverXP || Object.keys(mergedVocab.learnedWords || {}).length > Object.keys(serverVocab.learnedWords || {}).length) {
+      userApi.updateProgress({
+        xp: finalXP,
+        streak: finalStreak,
+        level: finalLevel,
+        vocabProgress: mergedVocab
+      }).catch((e) => console.warn('[Auto-reconcile on login notice]:', e.message));
+    }
+
+    console.log('✅ [Login Hydration] Progress successfully hydrated for user:', user?.email, 'XP:', finalXP);
   };
 
-  // Logout handler (Flush in-memory progress first, then safely clear token)
+  // Logout handler: Flushes in-memory progress to PostgreSQL first, preserves permanent local backup, then disarms sync
   const handleLogout = async () => {
-    // If logged in and hydrated, flush current in-memory progress to server before removing token
-    if (currentUser && isHydratedFromServer.current) {
+    const curUser = currentUser;
+    const token = getStoredToken();
+
+    // 1. Immediately disarm background auto-saves
+    isHydratedFromServer.current = false;
+    pendingSavePayloadRef.current = null;
+
+    // 2. Before deleting token: flush user's latest progress to PostgreSQL if progress exists
+    if (curUser && token && (userStats.xp > 0 || Object.keys(activeUserProgressRef.current?.learnedWords || {}).length > 0)) {
       try {
+        setSyncStatus('saving');
         await userApi.updateProgress({
           xp: userStats.xp,
           level: userStats.level,
           streak: userStats.streak,
           vocabProgress: activeUserProgressRef.current || {}
         });
+        setSyncStatus('synced');
       } catch (err) {
         console.warn('[Logout Flush Notice]:', err.message);
       }
     }
 
-    isHydratedFromServer.current = false;
-    activeUserProgressRef.current = {};
+    // 3. Preserve permanent local backup under email and userId (DO NOT DELETE!)
+    if (curUser) {
+      saveLocalBackup(curUser.id, curUser.email, {
+        xp: userStats.xp,
+        level: userStats.level,
+        streak: userStats.streak,
+        name: curUser.fullName,
+        vocabProgress: activeUserProgressRef.current,
+        studyNotes
+      });
+      if (curUser.id) {
+        saveStoredVocabProgress(activeUserProgressRef.current, curUser.id);
+      }
+    }
+
+    // 4. Remove token from localStorage
     authApi.logout();
+
+    // 5. Reset React states cleanly to fresh Guest view
+    activeUserProgressRef.current = {};
     setCurrentUser(null);
     setUserStats(GUEST_STATS);
     setStudyNotes([]);
     setVocabCourses(getFreshVocabCourses());
     setActivePracticeDeck(null);
+    setSyncStatus('synced');
+
     try {
-      localStorage.removeItem('lexiflow_v4_stats');
-      localStorage.removeItem('lexiflow_vocab_progress_v2');
-      localStorage.removeItem('lexiflow_v4_notes');
       localStorage.removeItem('lexiflow_v4_scratchpad');
     } catch {}
+
     showToast('👋 Đã đăng xuất tài khoản. Bạn đang ở chế độ xem học viên mới.');
   };
 
@@ -477,8 +831,13 @@ export default function App() {
         showToast(`+${amount} XP: ${reason}`);
       }
       
-      // Sync XP to PostgreSQL if logged in and hydrated
-      syncProgressToServer({ xp: nextXP, level: nextLevel, streak: prev?.streak || 1 });
+      // Sync XP to PostgreSQL if logged in and hydrated with complete snapshot
+      syncProgressToServer({
+        xp: nextXP,
+        level: nextLevel,
+        streak: prev?.streak || 1,
+        vocabProgress: activeUserProgressRef.current
+      });
 
       return {
         ...prev,
@@ -529,6 +888,47 @@ export default function App() {
     awardXP(10, `Đã ghim "${item.term}" vào sổ tay`);
   };
 
+  // Starred / Bookmarked Cards (persisted per user & synced to PostgreSQL)
+  const [starredCardIds, setStarredCardIds] = useState(() => {
+    try {
+      const raw = localStorage.getItem('lexiflow_starred_words');
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleToggleStar = (cardId) => {
+    setStarredCardIds((prev) => {
+      const currentList = Array.isArray(prev) ? prev : [];
+      const exists = currentList.includes(cardId);
+      const updated = exists ? currentList.filter((id) => id !== cardId) : [...currentList, cardId];
+
+      if (activeUserProgressRef.current) {
+        activeUserProgressRef.current = {
+          ...activeUserProgressRef.current,
+          starredWords: updated,
+          starredCardIds: updated
+        };
+        saveStoredVocabProgress(activeUserProgressRef.current, currentUser?.id);
+      }
+
+      syncProgressToServer({
+        vocabProgress: {
+          starredWords: updated,
+          starredCardIds: updated
+        }
+      });
+
+      try {
+        localStorage.setItem('lexiflow_starred_words', JSON.stringify(updated));
+      } catch {}
+
+      return updated;
+    });
+  };
+
   // Gather all cards across all courses and subdecks for SRS Hub
   const allCards = useMemo(() => {
     const list = [];
@@ -569,12 +969,9 @@ export default function App() {
     activeUserProgressRef.current = nextProgress;
     saveStoredVocabProgress(nextProgress, currentUser?.id);
 
-    // Immediate sync to server with bearer token
+    // Immediate sync to server with bearer token and complete snapshot
     syncProgressToServer({
-      vocabProgress: {
-        learnedWords: { [cardId]: updatedRecord },
-        [cardId]: updatedRecord
-      }
+      vocabProgress: nextProgress
     });
 
     // 2. Update vocabCourses
@@ -610,12 +1007,9 @@ export default function App() {
     activeUserProgressRef.current = nextProgress;
     saveStoredVocabProgress(nextProgress, currentUser?.id);
 
-    // Immediate sync to server
+    // Immediate sync to server with complete snapshot
     syncProgressToServer({
-      vocabProgress: {
-        topicState: { [subdeckId]: updatedTopic },
-        lastActiveTopicId: subdeckId
-      }
+      vocabProgress: nextProgress
     });
 
     // Update local vocabCourses state with new resume position
@@ -650,12 +1044,9 @@ export default function App() {
     activeUserProgressRef.current = nextProgress;
     saveStoredVocabProgress(nextProgress, currentUser?.id);
 
-    // Sync to PostgreSQL immediately
+    // Sync to PostgreSQL immediately with complete snapshot
     syncProgressToServer({
-      vocabProgress: {
-        ...cardUpdatesMap,
-        learnedWords: cardUpdatesMap
-      }
+      vocabProgress: nextProgress
     });
 
     setVocabCourses((prev) => applyVocabProgressToCourses(prev, nextProgress));
@@ -715,6 +1106,8 @@ export default function App() {
         onLogout={handleLogout}
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
+        syncStatus={syncStatus}
+        onRetrySync={handleRetrySync}
       />
 
       {/* MAIN CONTENT VIEWPORT */}
@@ -801,6 +1194,8 @@ export default function App() {
                   onPinNote={pinToStudyNote}
                   onAwardXP={awardXP}
                   onUpdateCardSRS={handleUpdateCardSRS}
+                  starredCardIds={starredCardIds}
+                  onToggleStar={handleToggleStar}
                 />
               )}
 

@@ -24,7 +24,9 @@ export default function Sidebar({
   onOpenAuthModal,
   onLogout,
   isCollapsed = false,
-  setIsCollapsed
+  setIsCollapsed,
+  syncStatus = 'synced',
+  onRetrySync
 }) {
   const menuItems = [
     { id: 'dashboard', label: 'Tổng quan & SRS Hub', icon: Home },
@@ -143,21 +145,39 @@ export default function Sidebar({
         {currentUser ? (
           isCollapsed ? (
             <div className="flex flex-col items-center gap-2">
-              {currentUser.avatarUrl ? (
-                <img
-                  src={currentUser.avatarUrl}
-                  alt={currentUser.fullName}
-                  className="w-9 h-9 rounded-full object-cover border border-indigo-500/40 shadow shrink-0"
-                  title={currentUser.fullName}
+              <div className="relative">
+                {currentUser.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.fullName}
+                    className="w-9 h-9 rounded-full object-cover border border-indigo-500/40 shadow shrink-0"
+                    title={currentUser.fullName}
+                  />
+                ) : (
+                  <div
+                    className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-emerald-500 flex items-center justify-center text-xs font-black text-white shadow shrink-0"
+                    title={currentUser.fullName || userStats?.name || 'Học viên'}
+                  >
+                    {(currentUser.fullName || userStats?.name || 'H')[0].toUpperCase()}
+                  </div>
+                )}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#131B2E] ${
+                    syncStatus === 'saving'
+                      ? 'bg-amber-400 animate-ping'
+                      : syncStatus === 'error'
+                      ? 'bg-rose-500 animate-pulse'
+                      : 'bg-emerald-400'
+                  }`}
+                  title={
+                    syncStatus === 'saving'
+                      ? 'Đang lưu tiến độ...'
+                      : syncStatus === 'error'
+                      ? 'Lỗi lưu tiến độ (Bấm để thử lại)'
+                      : 'Đã lưu vào tài khoản'
+                  }
                 />
-              ) : (
-                <div
-                  className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-emerald-500 flex items-center justify-center text-xs font-black text-white shadow shrink-0"
-                  title={currentUser.fullName || userStats?.name || 'Học viên'}
-                >
-                  {(currentUser.fullName || userStats?.name || 'H')[0].toUpperCase()}
-                </div>
-              )}
+              </div>
               <button
                 onClick={onLogout}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition"
@@ -212,9 +232,30 @@ export default function Sidebar({
                 </button>
               </div>
 
-              <div className="flex items-center gap-1.5 text-[10px] text-emerald-400/90 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Tiến độ đã đồng bộ</span>
+              {/* Dynamic Sync Status Indicator */}
+              <div className="flex items-center gap-1.5 text-[10px] font-medium pt-0.5">
+                {syncStatus === 'saving' && (
+                  <span className="flex items-center gap-1.5 text-amber-400 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping shrink-0" />
+                    <span>⏳ Đang lưu tiến độ...</span>
+                  </span>
+                )}
+                {syncStatus === 'synced' && (
+                  <span className="flex items-center gap-1.5 text-emerald-400/90">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    <span>● Đã lưu vào tài khoản</span>
+                  </span>
+                )}
+                {syncStatus === 'error' && (
+                  <button
+                    onClick={onRetrySync}
+                    className="flex items-center gap-1.5 text-rose-400 font-semibold hover:underline cursor-pointer transition"
+                    title="Bấm để thử lại lưu tiến độ"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                    <span>⚠️ Lỗi lưu tiến độ (Bấm để thử lại)</span>
+                  </button>
+                )}
               </div>
             </div>
           )

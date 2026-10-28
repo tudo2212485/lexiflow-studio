@@ -84,11 +84,11 @@ export default function StudySessionModal({
   const saveTopicState = (override = {}) => {
     if (onSaveTopicProgress && deck?.id) {
       const targetIdx = override.lastWordIndex !== undefined ? override.lastWordIndex : queueIndex;
-      const curCard = sessionQueue[targetIdx];
+      const combinedCompleted = Array.from(completedCardIds);
       onSaveTopicProgress(deck.id, {
         lastWordIndex: targetIdx,
         lastStep: override.lastStep !== undefined ? override.lastStep : step,
-        ...(curCard?.id ? { completedWordIds: [curCard.id] } : {}),
+        completedWordIds: combinedCompleted,
         ...override
       });
     }

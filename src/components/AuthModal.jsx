@@ -110,7 +110,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
           accessToken: tokenResponse.access_token
         });
 
-        const syncData = await userApi.getSync().catch(() => null);
+        const syncData = { ...res, ...(await userApi.getSync().catch(() => ({}))) };
 
         if (onAuthSuccess) {
           onAuthSuccess(res.user, syncData);
@@ -256,7 +256,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
         purpose: otpPurpose
       });
 
-      const syncData = await userApi.getSync().catch(() => null);
+      const syncData = { ...res, ...(await userApi.getSync().catch(() => ({}))) };
 
       if (onAuthSuccess) {
         onAuthSuccess(res.user, syncData);
@@ -368,7 +368,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, onShowToast 
         password
       });
 
-      const syncData = await userApi.getSync().catch(() => null);
+      const syncData = { ...res, ...(await userApi.getSync().catch(() => ({}))) };
 
       if (onAuthSuccess) {
         onAuthSuccess(res.user, syncData);

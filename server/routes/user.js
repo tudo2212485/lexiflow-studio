@@ -8,70 +8,191 @@ const router = express.Router();
 router.use(authenticateToken);
 
 /**
+ * Safe JSON parse helper that handles null, undefined, strings, double-stringified JSON, and objects
+ */
+export function safeJsonParse(val, fallback = {}) {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'object') return val;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return fallback;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === 'string') {
+        try {
+          const doubleParsed = JSON.parse(parsed);
+          return (doubleParsed && typeof doubleParsed === 'object') ? doubleParsed : fallback;
+        } catch {
+          return fallback;
+        }
+      }
+      return (parsed && typeof parsed === 'object') ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
+/**
  * Deep merge helper for vocab_progress
  * Safely preserves learnedWords, topicState, and lastActiveTopicId without overwriting
+ * Guaranteed NEVER to downgrade mastered cards or overwrite progress with empty objects
  */
-export function mergeVocabProgress(existing = {}, incoming = {}) {
-  if (!existing || typeof existing !== 'object') existing = {};
-  if (!incoming || typeof incoming !== 'object') return existing;
+export function mergeVocabProgress(existingRaw = {}, incomingRaw = {}) {
+  const existing = safeJsonParse(existingRaw, {});
+  const incoming = safeJsonParse(incomingRaw, {});
 
-  const existingLearned = (existing.learnedWords && typeof existing.learnedWords === 'object') ? existing.learnedWords : {};
-  const existingTopicState = (existing.topicState && typeof existing.topicState === 'object') ? existing.topicState : {};
+  const existingLearned = safeJsonParse(existing.learnedWords, {});
+  const existingTopicState = safeJsonParse(existing.topicState, {});
 
-  const incomingLearned = (incoming.learnedWords && typeof incoming.learnedWords === 'object') ? incoming.learnedWords : {};
-  const incomingTopicState = (incoming.topicState && typeof incoming.topicState === 'object') ? incoming.topicState : {};
+  const incomingLearned = safeJsonParse(incoming.learnedWords, {});
+  const incomingTopicState = safeJsonParse(incoming.topicState, {});
 
-  // Extract flat card records from legacy format
+  // Extract flat card records from legacy format (e.g. key = 'c1-s8-w1')
   const legacyExistingCards = {};
   for (const [k, v] of Object.entries(existing)) {
-    if (k !== 'learnedWords' && k !== 'topicState' && k !== 'lastActiveTopicId' && v && typeof v === 'object') {
+    if (
+      k !== 'learnedWords' &&
+      k !== 'topicState' &&
+      k !== 'lastActiveTopicId' &&
+      k !== 'starredWords' &&
+      k !== 'starredCardIds' &&
+      v &&
+      typeof v === 'object'
+    ) {
       legacyExistingCards[k] = v;
     }
   }
 
   const legacyIncomingCards = {};
   for (const [k, v] of Object.entries(incoming)) {
-    if (k !== 'learnedWords' && k !== 'topicState' && k !== 'lastActiveTopicId' && v && typeof v === 'object') {
+    if (
+      k !== 'learnedWords' &&
+      k !== 'topicState' &&
+      k !== 'lastActiveTopicId' &&
+      k !== 'starredWords' &&
+      k !== 'starredCardIds' &&
+      v &&
+      typeof v === 'object'
+    ) {
       legacyIncomingCards[k] = v;
     }
   }
 
-  // Deeply merge learned words (key by card.id or word)
+  // Base learned dictionary: start with all existing cards
   const mergedLearned = {
     ...legacyExistingCards,
     ...existingLearned
   };
 
-  // Merge legacy incoming
-  for (const [k, v] of Object.entries(legacyIncomingCards)) {
-    mergedLearned[k] = { ...(mergedLearned[k] || {}), ...v };
+  // Helper to merge a single card without downgrading
+  function mergeSingleCard(currentCard = {}, newCard = {}) {
+    if (!newCard || typeof newCard !== 'object') return currentCard;
+    if (!currentCard || Object.keys(currentCard).length === 0) return { ...newCard };
+
+    // Anti-downgrade status: if already mastered, preserve mastered status
+    const isCurrentlyMastered = currentCard.status === 'mastered';
+    const isIncomingMastered = newCard.status === 'mastered';
+    const status = (isCurrentlyMastered || isIncomingMastered)
+      ? 'mastered'
+      : (newCard.status || currentCard.status || 'learning');
+
+    const stepCompleted = Math.max(
+      Number(currentCard.stepCompleted || 0),
+      Number(newCard.stepCompleted || 0)
+    );
+
+    const reviewCount = Math.max(
+      Number(currentCard.reviewCount || 0),
+      Number(newCard.reviewCount || 0)
+    );
+
+    const intervalDays = Math.max(
+      Number(currentCard.intervalDays || 0),
+      Number(newCard.intervalDays || 0)
+    );
+
+    const lastStudiedAt = Math.max(
+      Number(currentCard.lastStudiedAt || 0),
+      Number(newCard.lastStudiedAt || 0),
+      Date.now()
+    );
+
+    const nextReviewAt = newCard.nextReviewAt !== undefined ? newCard.nextReviewAt : (currentCard.nextReviewAt || null);
+
+    return {
+      ...currentCard,
+      ...newCard,
+      status,
+      stepCompleted,
+      reviewCount,
+      intervalDays,
+      lastStudiedAt,
+      nextReviewAt
+    };
+  }
+
+  // Merge legacy incoming cards
+  for (const [cardId, cardData] of Object.entries(legacyIncomingCards)) {
+    mergedLearned[cardId] = mergeSingleCard(mergedLearned[cardId], cardData);
   }
 
   // Merge incoming learnedWords
-  for (const [k, v] of Object.entries(incomingLearned)) {
-    mergedLearned[k] = { ...(mergedLearned[k] || {}), ...v };
+  for (const [cardId, cardData] of Object.entries(incomingLearned)) {
+    mergedLearned[cardId] = mergeSingleCard(mergedLearned[cardId], cardData);
   }
 
-  // Deeply merge topicState
+  // Deeply merge topicState (anti-downgrade for lastWordIndex and lastStep)
   const mergedTopicState = { ...existingTopicState };
   for (const [tId, tData] of Object.entries(incomingTopicState)) {
     if (tData && typeof tData === 'object') {
+      const curTopic = existingTopicState[tId] || {};
+      const lastWordIndex = Math.max(
+        Number(curTopic.lastWordIndex || 0),
+        Number(tData.lastWordIndex || 0)
+      );
+      const lastStep = Math.max(
+        Number(curTopic.lastStep || 1),
+        Number(tData.lastStep || 1)
+      );
+      const existingCompleted = Array.isArray(curTopic.completedWordIds) ? curTopic.completedWordIds : [];
+      const incomingCompleted = Array.isArray(tData.completedWordIds) ? tData.completedWordIds : [];
+      const completedWordIds = Array.from(new Set([...existingCompleted, ...incomingCompleted]));
+
       mergedTopicState[tId] = {
-        ...(existingTopicState[tId] || {}),
+        ...curTopic,
         ...tData,
-        updatedAt: tData.updatedAt || new Date().toISOString()
+        lastWordIndex,
+        lastStep,
+        completedWordIds,
+        updatedAt: tData.updatedAt || curTopic.updatedAt || new Date().toISOString()
       };
     }
   }
 
+  // Preserve starred words
+  const existingStarred = Array.isArray(existing.starredWords)
+    ? existing.starredWords
+    : Array.isArray(existing.starredCardIds)
+    ? existing.starredCardIds
+    : [];
+
+  const incomingStarred = Array.isArray(incoming.starredWords)
+    ? incoming.starredWords
+    : Array.isArray(incoming.starredCardIds)
+    ? incoming.starredCardIds
+    : [];
+
+  const mergedStarred = Array.from(new Set([...existingStarred, ...incomingStarred]));
   const lastActiveTopicId = incoming.lastActiveTopicId || existing.lastActiveTopicId || null;
 
   return {
-    ...legacyExistingCards,
-    ...legacyIncomingCards,
     ...mergedLearned,
     learnedWords: mergedLearned,
     topicState: mergedTopicState,
+    starredWords: mergedStarred,
+    starredCardIds: mergedStarred,
     lastActiveTopicId
   };
 }
@@ -79,16 +200,17 @@ export function mergeVocabProgress(existing = {}, incoming = {}) {
 /**
  * 1. GET /api/user/sync & GET /api/progress Handler
  * Return complete profile, vocab_progress, grammar_progress, and notebooks from PostgreSQL
+ * Always cross-check highest XP between users and user_progress tables
  */
 export async function getProgressHandler(req, res) {
   try {
     const userId = req.user.id;
 
-    // 1. Fetch user & progress
+    // 1. Fetch user & progress from BOTH users and user_progress
     const progressRes = await query(
       `SELECT 
-        u.id, u.full_name, u.email, u.avatar_url,
-        p.xp, p.streak, p.level, p.daily_goal_minutes, p.studied_minutes_today, p.accent,
+        u.id, u.full_name, u.email, u.avatar_url, u.xp as user_xp, u.streak as user_streak,
+        p.xp as progress_xp, p.streak as progress_streak, p.level, p.daily_goal_minutes, p.studied_minutes_today, p.accent,
         p.vocab_progress, p.grammar_progress, p.last_active_date
        FROM users u
        LEFT JOIN user_progress p ON u.id = p.user_id
@@ -111,12 +233,12 @@ export async function getProgressHandler(req, res) {
       [userId]
     );
 
-    const safeXP = row.xp !== null ? Number(row.xp) : 0;
-    const safeStreak = row.streak !== null ? Number(row.streak) : 1;
-    const safeLevel = row.level !== null ? Number(row.level) : 1;
+    const safeXP = Math.max(Number(row.user_xp || 0), Number(row.progress_xp || 0));
+    const safeStreak = Math.max(Number(row.user_streak || 1), Number(row.progress_streak || 1));
+    const safeLevel = Math.max(Number(row.level || 1), Math.floor(safeXP / 300) + 1);
 
-    const vocabProgress = row.vocab_progress || {};
-    const grammarProgress = row.grammar_progress || {};
+    const vocabProgress = safeJsonParse(row.vocab_progress, {});
+    const grammarProgress = safeJsonParse(row.grammar_progress, {});
 
     return res.json({
       success: true,
@@ -137,7 +259,9 @@ export async function getProgressHandler(req, res) {
       streak: safeStreak,
       level: safeLevel,
       vocabProgress,
+      vocab_progress: vocabProgress,
       grammarProgress,
+      grammar_progress: grammarProgress,
       notebooks: notebooksRes.rows || []
     });
   } catch (err) {
@@ -153,6 +277,7 @@ export async function getProgressHandler(req, res) {
  * 2. PUT/POST /api/user/progress & /api/progress Handler
  * Update vocab_progress, grammar_progress, xp, streak, level, daily goal
  * Guaranteed never to overwrite existing data with empty states
+ * Enforces Anti-Downgrade Guard for XP, streak, and vocab_progress
  */
 export async function updateProgressHandler(req, res) {
   try {
@@ -172,36 +297,50 @@ export async function updateProgressHandler(req, res) {
       lastActiveTopicId
     } = req.body;
 
-    const incomingVocab = vocabProgress || vocab_progress || {};
+    const incomingVocab = safeJsonParse(vocabProgress || vocab_progress || {}, {});
     if (topicState && !incomingVocab.topicState) {
-      incomingVocab.topicState = topicState;
+      incomingVocab.topicState = safeJsonParse(topicState, {});
     }
     if (lastActiveTopicId && !incomingVocab.lastActiveTopicId) {
       incomingVocab.lastActiveTopicId = lastActiveTopicId;
     }
 
-    const incomingGrammar = grammarProgress || grammar_progress || {};
+    const incomingGrammar = safeJsonParse(grammarProgress || grammar_progress || {}, {});
 
-    // Fetch existing progress
-    const currentRes = await query('SELECT * FROM user_progress WHERE user_id = $1', [userId]);
+    // 1. Fetch current DB record from BOTH users and user_progress
+    const [userRes, progressRes] = await Promise.all([
+      query('SELECT xp, streak FROM users WHERE id = $1', [userId]),
+      query('SELECT * FROM user_progress WHERE user_id = $1', [userId])
+    ]);
+
+    const userRow = userRes.rows[0] || {};
+    const progressRow = progressRes.rows[0] || {};
+
+    const currentDbXp = Math.max(Number(userRow.xp || 0), Number(progressRow.xp || 0));
+    const currentDbStreak = Math.max(Number(userRow.streak || 1), Number(progressRow.streak || 1));
+    const currentDbLevel = Math.max(Number(progressRow.level || 1), Math.floor(currentDbXp / 300) + 1);
+
+    // ANTI-DOWNGRADE RULE: Math.max ensures XP and streak NEVER decrease!
+    const incomingXpNum = xp !== undefined ? Number(xp) : 0;
+    const finalXP = Math.max(currentDbXp, incomingXpNum);
+
+    const incomingStreakNum = streak !== undefined ? Number(streak) : 1;
+    const finalStreak = Math.max(currentDbStreak, incomingStreakNum);
+
+    const incomingLevelNum = level !== undefined ? Number(level) : 1;
+    const finalLevel = Math.max(currentDbLevel, incomingLevelNum, Math.floor(finalXP / 300) + 1);
 
     let finalVocab = {};
     let finalGrammar = {};
-    let finalXP = 0;
-    let finalStreak = 1;
-    let finalLevel = 1;
 
-    if (currentRes.rowCount === 0) {
+    if (progressRes.rowCount === 0) {
       finalVocab = mergeVocabProgress({}, incomingVocab);
       finalGrammar = incomingGrammar;
-      finalXP = xp !== undefined ? Number(xp) : 0;
-      finalStreak = streak !== undefined ? Number(streak) : 1;
-      finalLevel = level !== undefined ? Number(level) : 1;
 
       await query(
         `INSERT INTO user_progress 
           (user_id, xp, streak, level, daily_goal_minutes, studied_minutes_today, accent, vocab_progress, grammar_progress)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)`,
         [
           userId,
           finalXP,
@@ -215,22 +354,9 @@ export async function updateProgressHandler(req, res) {
         ]
       );
     } else {
-      const current = currentRes.rows[0];
-      finalVocab = mergeVocabProgress(current.vocab_progress || {}, incomingVocab);
-      finalGrammar = { ...(current.grammar_progress || {}), ...incomingGrammar };
-
-      // Ensure XP, streak, and level NEVER decrease due to race condition with empty state!
-      const existingXP = Number(current.xp || 0);
-      const incomingXP = xp !== undefined ? Number(xp) : existingXP;
-      finalXP = Math.max(existingXP, incomingXP);
-
-      const existingStreak = Number(current.streak || 1);
-      const incomingStreak = streak !== undefined ? Number(streak) : existingStreak;
-      finalStreak = Math.max(existingStreak, incomingStreak);
-
-      const existingLevel = Number(current.level || 1);
-      const incomingLevel = level !== undefined ? Number(level) : existingLevel;
-      finalLevel = Math.max(existingLevel, incomingLevel);
+      finalVocab = mergeVocabProgress(progressRow.vocab_progress, incomingVocab);
+      const existingGrammar = safeJsonParse(progressRow.grammar_progress, {});
+      finalGrammar = { ...existingGrammar, ...incomingGrammar };
 
       await query(
         `UPDATE user_progress
@@ -240,8 +366,8 @@ export async function updateProgressHandler(req, res) {
              daily_goal_minutes = COALESCE($4, daily_goal_minutes),
              studied_minutes_today = COALESCE($5, studied_minutes_today),
              accent = COALESCE($6, accent),
-             vocab_progress = $7,
-             grammar_progress = $8,
+             vocab_progress = $7::jsonb,
+             grammar_progress = $8::jsonb,
              last_active_date = CURRENT_DATE,
              updated_at = CURRENT_TIMESTAMP
          WHERE user_id = $9`,
@@ -259,6 +385,16 @@ export async function updateProgressHandler(req, res) {
       );
     }
 
+    // Keep users table in sync with highest XP and streak
+    await query(
+      `UPDATE users 
+       SET xp = GREATEST(COALESCE(xp, 0), $1),
+           streak = GREATEST(COALESCE(streak, 1), $2),
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $3`,
+      [finalXP, finalStreak, userId]
+    ).catch((e) => console.warn('[Update users xp/streak notice]:', e.message));
+
     return res.json({
       success: true,
       message: 'Cập nhật tiến độ học tập thành công!',
@@ -266,7 +402,9 @@ export async function updateProgressHandler(req, res) {
       streak: finalStreak,
       level: finalLevel,
       vocabProgress: finalVocab,
-      grammarProgress: finalGrammar
+      vocab_progress: finalVocab,
+      grammarProgress: finalGrammar,
+      grammar_progress: finalGrammar
     });
   } catch (err) {
     console.error('[Update Progress Error]:', err);
