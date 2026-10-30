@@ -165,14 +165,42 @@ export async function ensureDbSchema() {
           CREATE TABLE IF NOT EXISTS user_notebooks (
             id VARCHAR(100) PRIMARY KEY,
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            term VARCHAR(255) NOT NULL,
+            term VARCHAR(255) NOT NULL DEFAULT '',
             phonetic VARCHAR(255) DEFAULT '',
-            meaning TEXT NOT NULL,
+            meaning TEXT NOT NULL DEFAULT '',
             example TEXT DEFAULT '',
             tag VARCHAR(100) DEFAULT 'Từ mới',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
+
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS term VARCHAR(255) DEFAULT '';
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS phonetic VARCHAR(255) DEFAULT '';
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS meaning TEXT DEFAULT '';
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS example TEXT DEFAULT '';
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS tag VARCHAR(100) DEFAULT 'Từ mới';
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+          ALTER TABLE user_notebooks ADD COLUMN IF NOT EXISTS items JSONB;
+
+          CREATE TABLE IF NOT EXISTS saved_words (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            term VARCHAR(255) NOT NULL DEFAULT '',
+            phonetic VARCHAR(255) DEFAULT '',
+            meaning TEXT DEFAULT '',
+            definition TEXT DEFAULT '',
+            example TEXT DEFAULT '',
+            tag VARCHAR(100) DEFAULT 'Từ mới',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+          ALTER TABLE saved_words ADD COLUMN IF NOT EXISTS term VARCHAR(255) DEFAULT '';
+          ALTER TABLE saved_words ADD COLUMN IF NOT EXISTS phonetic VARCHAR(255) DEFAULT '';
+          ALTER TABLE saved_words ADD COLUMN IF NOT EXISTS meaning TEXT DEFAULT '';
+          ALTER TABLE saved_words ADD COLUMN IF NOT EXISTS definition TEXT DEFAULT '';
+          ALTER TABLE saved_words ADD COLUMN IF NOT EXISTS example TEXT DEFAULT '';
+          ALTER TABLE saved_words ADD COLUMN IF NOT EXISTS tag VARCHAR(100) DEFAULT 'Từ mới';
 
           CREATE TABLE IF NOT EXISTS otp_verifications (
             id SERIAL PRIMARY KEY,
@@ -189,6 +217,7 @@ export async function ensureDbSchema() {
           CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
           CREATE INDEX IF NOT EXISTS idx_progress_user_id ON user_progress(user_id);
           CREATE INDEX IF NOT EXISTS idx_notebooks_user_id ON user_notebooks(user_id);
+          CREATE INDEX IF NOT EXISTS idx_saved_words_user_id ON saved_words(user_id);
         `);
 
         isSchemaInitialized = true;

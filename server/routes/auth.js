@@ -47,7 +47,7 @@ function normalizePhone(rawPhone) {
   return cleaned;
 }
 
-import { safeJsonParse } from './user.js';
+import { safeJsonParse, fetchUserNotebooks } from './user.js';
 
 // Helper: validate Vietnamese phone number (10 digits: 03, 05, 07, 08, 09)
 function isValidVNPhone(phone) {
@@ -73,8 +73,8 @@ function generateToken(user) {
 async function getFullUserAuthPayload(user, token, message = 'Đăng nhập thành công!') {
   await ensureDbSchema();
 
-  // Run the JOIN query and user_notebooks query in parallel (2 queries total)
-  const [progressRes, notebooksRes] = await Promise.all([
+  // Run the JOIN query and safe notebook fetch in parallel (2 queries total)
+  const [progressRes, notebooks] = await Promise.all([
     query(
       `SELECT 
         u.id, u.full_name, u.email, u.phone, u.avatar_url,
@@ -91,13 +91,7 @@ async function getFullUserAuthPayload(user, token, message = 'Đăng nhập thà
        WHERE u.id = $1`,
       [user.id]
     ),
-    query(
-      `SELECT id, term, phonetic, meaning, example, tag, created_at as "createdAt"
-       FROM user_notebooks
-       WHERE user_id = $1
-       ORDER BY created_at DESC`,
-      [user.id]
-    )
+    fetchUserNotebooks(user.id)
   ]);
 
   const row = progressRes.rows[0] || user;
@@ -148,7 +142,7 @@ async function getFullUserAuthPayload(user, token, message = 'Đăng nhập thà
     vocabProgress: vocabProgress,
     grammar_progress: grammarProgress,
     grammarProgress: grammarProgress,
-    notebooks: notebooksRes.rows || []
+    notebooks: notebooks || []
   };
 }
 

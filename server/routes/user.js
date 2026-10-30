@@ -198,6 +198,77 @@ export function mergeVocabProgress(existingRaw = {}, incomingRaw = {}) {
 }
 
 /**
+ * Safe fetch for user notebooks with multi-schema fallback.
+ * Resilient against missing columns, JSONB items schemas, or table migration variations.
+ */
+export async function fetchUserNotebooks(userId) {
+  try {
+    const res = await query(
+      `SELECT 
+        id, 
+        COALESCE(term, '') AS term, 
+        COALESCE(phonetic, '') AS phonetic, 
+        COALESCE(meaning, '') AS meaning, 
+        COALESCE(example, '') AS example, 
+        COALESCE(tag, 'Từ mới') AS tag, 
+        created_at AS "createdAt"
+       FROM user_notebooks
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [userId]
+    );
+
+    const notes = [];
+    for (const r of (res.rows || [])) {
+      if (r.term || r.meaning) {
+        notes.push({
+          id: r.id,
+          term: r.term || '',
+          phonetic: r.phonetic || '',
+          meaning: r.meaning || '',
+          example: r.example || '',
+          tag: r.tag || 'Từ mới',
+          createdAt: r.createdAt
+        });
+      }
+    }
+    return notes;
+  } catch (err) {
+    console.warn('[Notebooks Fetch Notice]:', err.message);
+    // Fallback 1: Try querying JSONB items column if present
+    try {
+      const fallbackRes = await query(
+        `SELECT id, items, created_at as "createdAt" FROM user_notebooks WHERE user_id = $1`,
+        [userId]
+      );
+      const notes = [];
+      for (const r of (fallbackRes.rows || [])) {
+        if (r.items) {
+          const parsed = typeof r.items === 'string' ? JSON.parse(r.items) : r.items;
+          if (Array.isArray(parsed)) {
+            notes.push(...parsed);
+          } else if (parsed && typeof parsed === 'object') {
+            notes.push(parsed);
+          }
+        }
+      }
+      if (notes.length > 0) return notes;
+    } catch {}
+
+    // Fallback 2: Try querying saved_words table if present
+    try {
+      const swRes = await query(
+        `SELECT id, term, phonetic, meaning, example, tag, created_at as "createdAt" FROM saved_words WHERE user_id = $1 ORDER BY created_at DESC`,
+        [userId]
+      );
+      if (swRes.rows && swRes.rows.length > 0) return swRes.rows;
+    } catch {}
+
+    return [];
+  }
+}
+
+/**
  * 1. GET /api/user/sync & GET /api/progress Handler
  * Return complete profile, vocab_progress, grammar_progress, and notebooks from PostgreSQL
  * Always cross-check highest XP between users and user_progress tables
@@ -208,7 +279,7 @@ export async function getProgressHandler(req, res) {
     const userId = req.user.id;
 
     // 1. Fetch user & progress in parallel with explicit table aliases
-    const [progressRes, notebooksRes] = await Promise.all([
+    const [progressRes, notebooks] = await Promise.all([
       query(
         `SELECT 
           u.id, u.full_name, u.email, u.phone, u.avatar_url,
@@ -226,13 +297,7 @@ export async function getProgressHandler(req, res) {
          WHERE u.id = $1`,
         [userId]
       ),
-      query(
-        `SELECT id, term, phonetic, meaning, example, tag, created_at as "createdAt"
-         FROM user_notebooks
-         WHERE user_id = $1
-         ORDER BY created_at DESC`,
-        [userId]
-      )
+      fetchUserNotebooks(userId)
     ]);
 
     if (progressRes.rowCount === 0) {
@@ -280,7 +345,7 @@ export async function getProgressHandler(req, res) {
       vocab_progress: vocabProgress,
       grammarProgress,
       grammar_progress: grammarProgress,
-      notebooks: notebooksRes.rows || []
+      notebooks: notebooks || []
     });
   } catch (err) {
     console.error('[User Progress Sync Error]:', err);
