@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { OAuth2Client } from 'google-auth-library';
-import { query } from '../db.js';
+import { query, ensureDbSchema } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -71,76 +71,75 @@ function generateToken(user) {
 
 // Helper to return complete user profile, progress, and notebooks in a single response upon auth
 async function getFullUserAuthPayload(user, token, message = 'Đăng nhập thành công!') {
-  // 1. Fetch user from users and user_progress simultaneously to never lose XP
-  const [userDbRes, progressRes] = await Promise.all([
-    query(`SELECT id, full_name, email, phone, avatar_url, xp, streak FROM users WHERE id = $1`, [user.id]),
+  await ensureDbSchema();
+
+  // Run the JOIN query and user_notebooks query in parallel (2 queries total)
+  const [progressRes, notebooksRes] = await Promise.all([
     query(
-      `SELECT xp, streak, level, daily_goal_minutes, studied_minutes_today, accent, vocab_progress, grammar_progress
-       FROM user_progress
-       WHERE user_id = $1`,
+      `SELECT 
+        u.id, u.full_name, u.email, u.phone, u.avatar_url,
+        GREATEST(COALESCE(u.xp, 0), COALESCE(up.xp, 0)) AS xp,
+        GREATEST(COALESCE(u.streak, 1), COALESCE(up.streak, 1)) AS streak,
+        COALESCE(up.level, 1) AS level,
+        COALESCE(up.daily_goal_minutes, 30) AS daily_goal_minutes,
+        COALESCE(up.studied_minutes_today, 0) AS studied_minutes_today,
+        COALESCE(up.accent, 'en-US') AS accent,
+        up.vocab_progress,
+        up.grammar_progress
+       FROM users u
+       LEFT JOIN user_progress up ON u.id = up.user_id
+       WHERE u.id = $1`,
+      [user.id]
+    ),
+    query(
+      `SELECT id, term, phonetic, meaning, example, tag, created_at as "createdAt"
+       FROM user_notebooks
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
       [user.id]
     )
   ]);
 
-  const userRow = userDbRes.rows[0] || user;
-  let progress = progressRes.rows[0];
-  if (!progress) {
-    await initializeUserData(user.id);
-    const freshRes = await query(
-      `SELECT xp, streak, level, daily_goal_minutes, studied_minutes_today, accent, vocab_progress, grammar_progress
-       FROM user_progress
-       WHERE user_id = $1`,
-      [user.id]
-    );
-    progress = freshRes.rows[0] || {};
+  const row = progressRes.rows[0] || user;
+  const safeXP = Number(row.xp !== undefined ? row.xp : (user.xp || 0));
+  const safeStreak = Math.max(1, Number(row.streak !== undefined ? row.streak : (user.streak || 1)));
+  const safeLevel = Math.max(1, Number(row.level || 1), Math.floor(safeXP / 300) + 1);
+
+  const vocabProgress = safeJsonParse(row.vocab_progress, {});
+  const grammarProgress = safeJsonParse(row.grammar_progress, {});
+
+  // Ensure user_progress row exists asynchronously in background if not already present
+  if (!progressRes.rows[0]?.vocab_progress) {
+    query(
+      `INSERT INTO user_progress (user_id, xp, streak, level, vocab_progress, grammar_progress)
+       VALUES ($1, $2, $3, $4, '{}'::jsonb, '{}'::jsonb)
+       ON CONFLICT (user_id) DO NOTHING`,
+      [user.id, safeXP, safeStreak, safeLevel]
+    ).catch(() => {});
   }
 
-  // 2. Fetch user_notebooks
-  const notebooksRes = await query(
-    `SELECT id, term, phonetic, meaning, example, tag, created_at as "createdAt"
-     FROM user_notebooks
-     WHERE user_id = $1
-     ORDER BY created_at DESC`,
-    [user.id]
-  );
-
-  const safeXP = Math.max(Number(userRow.xp || 0), Number(progress?.xp || 0));
-  const safeStreak = Math.max(Number(userRow.streak || 1), Number(progress?.streak || 1));
-  const safeLevel = Math.max(Number(progress?.level || 1), Math.floor(safeXP / 300) + 1);
-
-  const vocabProgress = safeJsonParse(progress?.vocab_progress, {});
-  const grammarProgress = safeJsonParse(progress?.grammar_progress, {});
+  const userObj = {
+    id: row.id,
+    email: row.email,
+    phone: row.phone,
+    fullName: row.full_name || row.fullName || user.full_name || 'Học viên',
+    avatarUrl: row.avatar_url || row.avatarUrl || user.avatar_url,
+    xp: safeXP,
+    streak: safeStreak,
+    level: safeLevel,
+    dailyGoalMinutes: row.daily_goal_minutes || 30,
+    studiedMinutesToday: row.studied_minutes_today || 0,
+    accent: row.accent || 'en-US'
+  };
 
   return {
     success: true,
     message,
     ...(token ? { token } : {}),
-    user: {
-      id: userRow.id,
-      email: userRow.email,
-      phone: userRow.phone,
-      fullName: userRow.full_name || userRow.fullName,
-      avatarUrl: userRow.avatar_url || userRow.avatarUrl,
-      xp: safeXP,
-      streak: safeStreak,
-      level: safeLevel,
-      dailyGoalMinutes: progress?.daily_goal_minutes || 30,
-      studiedMinutesToday: progress?.studied_minutes_today || 0,
-      accent: progress?.accent || 'en-US'
-    },
+    user: userObj,
     profile: {
-      id: userRow.id,
-      email: userRow.email,
-      phone: userRow.phone,
-      fullName: userRow.full_name || userRow.fullName,
-      name: userRow.full_name || userRow.fullName,
-      avatarUrl: userRow.avatar_url || userRow.avatarUrl,
-      xp: safeXP,
-      streak: safeStreak,
-      level: safeLevel,
-      dailyGoalMinutes: progress?.daily_goal_minutes || 30,
-      studiedMinutesToday: progress?.studied_minutes_today || 0,
-      accent: progress?.accent || 'en-US'
+      ...userObj,
+      name: userObj.fullName
     },
     xp: safeXP,
     streak: safeStreak,
@@ -572,6 +571,7 @@ router.post('/verify-otp', async (req, res) => {
  */
 router.post('/login', async (req, res) => {
   try {
+    await ensureDbSchema();
     const { identifier, email, password } = req.body;
     const loginTarget = (identifier || email || '').trim();
 
@@ -755,40 +755,23 @@ router.post('/google', async (req, res) => {
     const finalName = (gName || normalizedEmail.split('@')[0]).trim();
     const finalAvatar = gPicture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(finalName)}&backgroundColor=059669`;
 
-    // Direct query to PostgreSQL
-    const userRes = await query(
-      `SELECT id, email, phone, full_name, avatar_url, google_id, xp, streak 
-       FROM users 
-       WHERE email = $1 OR (google_id = $2 AND google_id IS NOT NULL)`,
-      [normalizedEmail, gId || '']
+    await ensureDbSchema();
+
+    // Atomic UPSERT user in 1 single query using RETURNING
+    const upsertRes = await query(
+      `INSERT INTO users (full_name, email, avatar_url, google_id, is_verified, auth_provider)
+       VALUES ($1, $2, $3, $4, true, 'google')
+       ON CONFLICT (email) DO UPDATE
+       SET google_id = COALESCE(users.google_id, EXCLUDED.google_id),
+           avatar_url = COALESCE(NULLIF(users.avatar_url, ''), EXCLUDED.avatar_url),
+           full_name = COALESCE(NULLIF(users.full_name, ''), EXCLUDED.full_name),
+           is_verified = true,
+           updated_at = CURRENT_TIMESTAMP
+       RETURNING id, full_name, email, phone, avatar_url, xp, streak`,
+      [finalName, normalizedEmail, finalAvatar, gId || null]
     );
 
-    let user;
-
-    if (userRes.rowCount > 0) {
-      user = userRes.rows[0];
-      const updRes = await query(
-        `UPDATE users 
-         SET google_id = COALESCE(google_id, $1),
-             avatar_url = COALESCE(NULLIF(avatar_url, ''), $2),
-             is_verified = true,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3
-         RETURNING id, full_name, email, phone, avatar_url, xp, streak`,
-        [gId, finalAvatar, user.id]
-      );
-      user = updRes.rows[0];
-    } else {
-      const insertRes = await query(
-        `INSERT INTO users (full_name, email, avatar_url, google_id, is_verified, auth_provider)
-         VALUES ($1, $2, $3, $4, true, 'google')
-         RETURNING id, full_name, email, phone, avatar_url, xp, streak`,
-        [finalName, normalizedEmail, finalAvatar, gId]
-      );
-      user = insertRes.rows[0];
-      await initializeUserData(user.id);
-    }
-
+    const user = upsertRes.rows[0];
     const token = generateToken(user);
 
     const payload = await getFullUserAuthPayload(user, token, 'Đăng nhập bằng tài khoản Google thành công!');

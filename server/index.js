@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initDatabase, ensureDbInitialized, pool } from './db.js';
+import { initDatabase, ensureDbInitialized, ensureDbSchema, pool } from './db.js';
 import { syncEnv } from '../scripts/syncEnv.js';
 import authRoutes from './routes/auth.js';
 import userRoutes, { getProgressHandler, updateProgressHandler } from './routes/user.js';

@@ -2,10 +2,11 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const TOKEN_KEY = 'lexiflow_auth_token';
+const LEGACY_TOKEN_KEY = 'lexiflow_token';
 
 export function getStoredToken() {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
   } catch {
     return null;
   }
@@ -15,8 +16,10 @@ export function setStoredToken(token) {
   try {
     if (token) {
       localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(LEGACY_TOKEN_KEY, token);
     } else {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
     }
   } catch {}
 }
@@ -24,6 +27,7 @@ export function setStoredToken(token) {
 export function removeStoredToken() {
   try {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
   } catch {}
 }
 

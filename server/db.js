@@ -49,9 +49,10 @@ const isLocal =
 export const pool = new Pool({
   connectionString: dbUrl,
   ssl: isLocal ? false : { rejectUnauthorized: false },
-  max: process.env.VERCEL ? 5 : 20,
+  max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000
+  connectionTimeoutMillis: 5000,
+  keepAlive: true
 });
 
 export const query = (text, params) => pool.query(text, params);
@@ -83,7 +84,6 @@ async function ensureDatabaseExists() {
 
     if (res.rowCount === 0) {
       console.log(`[Database] Database "${targetDb}" chưa tồn tại. Đang tự động tạo...`);
-      // Escape identifier safely
       await maintenanceClient.query(`CREATE DATABASE "${targetDb.replace(/"/g, '""')}"`);
       console.log(`[Database] ✅ Đã tạo thành công database "${targetDb}" trên PostgreSQL!`);
     }
@@ -96,123 +96,114 @@ async function ensureDatabaseExists() {
   }
 }
 
-let initDbPromise = null;
+/**
+ * Global flag ensuring schema migration runs EXACTLY ONCE per Serverless instance lifecycle.
+ * Cached to prevent executing DDL queries on subsequent requests, eliminating login lag.
+ */
+let isSchemaInitialized = false;
+let schemaInitPromise = null;
 
 /**
- * Singleton initializer for Serverless cold starts
+ * Ensure database schema exists and is fully migrated.
+ * Consolidates all required tables and columns into a single atomic SQL command.
  */
-export function ensureDbInitialized() {
-  if (!initDbPromise) {
-    initDbPromise = initDatabase().catch((err) => {
-      console.error('[Database] Lỗi tự động khởi tạo bảng:', err.message);
-      initDbPromise = null; // Allow retry on subsequent requests
-      throw err;
-    });
+export async function ensureDbSchema() {
+  if (isSchemaInitialized) return true;
+
+  if (!schemaInitPromise) {
+    schemaInitPromise = (async () => {
+      try {
+        await ensureDatabaseExists();
+
+        console.log('[Database Schema] Đang kiểm tra và khởi tạo schema trong PostgreSQL...');
+
+        // Execute unified migration in a single round-trip
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            email VARCHAR(255) UNIQUE,
+            phone VARCHAR(20) UNIQUE,
+            password_hash VARCHAR(255),
+            full_name VARCHAR(255) NOT NULL DEFAULT 'Học viên',
+            avatar_url TEXT,
+            google_id VARCHAR(255) UNIQUE,
+            auth_provider VARCHAR(30) DEFAULT 'local',
+            is_verified BOOLEAN DEFAULT false,
+            otp_code VARCHAR(10),
+            otp_expires_at TIMESTAMP WITH TIME ZONE,
+            xp INT DEFAULT 0,
+            streak INT DEFAULT 1,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INT DEFAULT 0, ADD COLUMN IF NOT EXISTS streak INT DEFAULT 1, ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(30) DEFAULT 'local';
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code VARCHAR(10);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP WITH TIME ZONE;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255);
+
+          CREATE TABLE IF NOT EXISTS user_progress (
+            user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            xp INT DEFAULT 0,
+            streak INT DEFAULT 1,
+            vocab_progress JSONB DEFAULT '{}'::jsonb,
+            grammar_progress JSONB DEFAULT '{}'::jsonb,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS xp INT DEFAULT 0, ADD COLUMN IF NOT EXISTS streak INT DEFAULT 1, ADD COLUMN IF NOT EXISTS vocab_progress JSONB DEFAULT '{}'::jsonb, ADD COLUMN IF NOT EXISTS grammar_progress JSONB DEFAULT '{}'::jsonb, ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+          ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS level INT DEFAULT 1;
+          ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS daily_goal_minutes INT DEFAULT 30;
+          ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS studied_minutes_today INT DEFAULT 0;
+          ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS accent VARCHAR(20) DEFAULT 'en-US';
+          ALTER TABLE user_progress ADD COLUMN IF NOT EXISTS last_active_date DATE DEFAULT CURRENT_DATE;
+
+          CREATE TABLE IF NOT EXISTS user_notebooks (
+            id VARCHAR(100) PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            term VARCHAR(255) NOT NULL,
+            phonetic VARCHAR(255) DEFAULT '',
+            meaning TEXT NOT NULL,
+            example TEXT DEFAULT '',
+            tag VARCHAR(100) DEFAULT 'Từ mới',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE IF NOT EXISTS otp_verifications (
+            id SERIAL PRIMARY KEY,
+            target VARCHAR(255) NOT NULL,
+            otp_code VARCHAR(10) NOT NULL,
+            type VARCHAR(20) NOT NULL,
+            purpose VARCHAR(50) DEFAULT 'register',
+            metadata JSONB DEFAULT '{}'::jsonb,
+            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+          CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
+          CREATE INDEX IF NOT EXISTS idx_progress_user_id ON user_progress(user_id);
+          CREATE INDEX IF NOT EXISTS idx_notebooks_user_id ON user_notebooks(user_id);
+        `);
+
+        isSchemaInitialized = true;
+        console.log('[Database Schema] ✅ Khởi tạo & xác thực schema PostgreSQL thành công!');
+        return true;
+      } catch (err) {
+        console.error('[Database Schema] ❌ Lỗi tự động khởi tạo schema:', err.message);
+        schemaInitPromise = null;
+        throw err;
+      }
+    })();
   }
-  return initDbPromise;
+  return schemaInitPromise;
 }
 
-/**
- * Initialize all required tables: users, user_progress, user_notebooks
- */
-export async function initDatabase() {
-  try {
-    await ensureDatabaseExists();
-
-    console.log('[Database] Đang khởi tạo các bảng trong PostgreSQL...');
-
-    // 1. Table users
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE,
-        phone VARCHAR(20) UNIQUE,
-        password_hash VARCHAR(255),
-        full_name VARCHAR(255) NOT NULL,
-        avatar_url TEXT,
-        google_id VARCHAR(255) UNIQUE,
-        auth_provider VARCHAR(30) DEFAULT 'local',
-        is_verified BOOLEAN DEFAULT false,
-        otp_code VARCHAR(10),
-        otp_expires_at TIMESTAMP WITH TIME ZONE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Ensure columns exist if table was already created
-    await pool.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20) UNIQUE;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(30) DEFAULT 'local';
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code VARCHAR(10);
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP WITH TIME ZONE;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS xp INTEGER DEFAULT 0;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS streak INTEGER DEFAULT 1;
-      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
-    `);
-
-    // 2. Table user_progress
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_progress (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-        xp INTEGER DEFAULT 0,
-        streak INTEGER DEFAULT 1,
-        level INTEGER DEFAULT 1,
-        daily_goal_minutes INTEGER DEFAULT 30,
-        studied_minutes_today INTEGER DEFAULT 0,
-        accent VARCHAR(20) DEFAULT 'en-US',
-        vocab_progress JSONB DEFAULT '{}'::jsonb,
-        grammar_progress JSONB DEFAULT '{}'::jsonb,
-        last_active_date DATE DEFAULT CURRENT_DATE,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // 3. Table user_notebooks
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_notebooks (
-        id VARCHAR(100) PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        term VARCHAR(255) NOT NULL,
-        phonetic VARCHAR(255) DEFAULT '',
-        meaning TEXT NOT NULL,
-        example TEXT DEFAULT '',
-        tag VARCHAR(100) DEFAULT 'Từ mới',
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // 4. Table otp_verifications for pending signups and forgot passwords
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS otp_verifications (
-        id SERIAL PRIMARY KEY,
-        target VARCHAR(255) NOT NULL,
-        otp_code VARCHAR(10) NOT NULL,
-        type VARCHAR(20) NOT NULL,
-        purpose VARCHAR(50) DEFAULT 'register',
-        metadata JSONB DEFAULT '{}'::jsonb,
-        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Create indexes for fast lookups
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
-      CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
-      CREATE INDEX IF NOT EXISTS idx_progress_user_id ON user_progress(user_id);
-      CREATE INDEX IF NOT EXISTS idx_notebooks_user_id ON user_notebooks(user_id);
-      CREATE INDEX IF NOT EXISTS idx_otp_target ON otp_verifications(target);
-    `);
-
-    console.log('[Database] ✅ Khởi tạo 3 bảng (users, user_progress, user_notebooks) và các Index thành công!');
-    return true;
-  } catch (err) {
-    console.error('[Database] ❌ Lỗi khởi tạo cơ sở dữ liệu:', err);
-    throw err;
-  }
-}
+// Aliases for backwards compatibility
+export const ensureDbInitialized = ensureDbSchema;
+export const initDatabase = ensureDbSchema;

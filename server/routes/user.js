@@ -1,5 +1,5 @@
 import express from 'express';
-import { query } from '../db.js';
+import { query, ensureDbSchema } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -204,38 +204,45 @@ export function mergeVocabProgress(existingRaw = {}, incomingRaw = {}) {
  */
 export async function getProgressHandler(req, res) {
   try {
+    await ensureDbSchema();
     const userId = req.user.id;
 
-    // 1. Fetch user & progress from BOTH users and user_progress
-    const progressRes = await query(
-      `SELECT 
-        u.id, u.full_name, u.email, u.avatar_url, u.xp as user_xp, u.streak as user_streak,
-        p.xp as progress_xp, p.streak as progress_streak, p.level, p.daily_goal_minutes, p.studied_minutes_today, p.accent,
-        p.vocab_progress, p.grammar_progress, p.last_active_date
-       FROM users u
-       LEFT JOIN user_progress p ON u.id = p.user_id
-       WHERE u.id = $1`,
-      [userId]
-    );
+    // 1. Fetch user & progress in parallel with explicit table aliases
+    const [progressRes, notebooksRes] = await Promise.all([
+      query(
+        `SELECT 
+          u.id, u.full_name, u.email, u.phone, u.avatar_url,
+          GREATEST(COALESCE(u.xp, 0), COALESCE(up.xp, 0)) AS xp,
+          GREATEST(COALESCE(u.streak, 1), COALESCE(up.streak, 1)) AS streak,
+          COALESCE(up.level, 1) AS level,
+          COALESCE(up.daily_goal_minutes, 30) AS daily_goal_minutes,
+          COALESCE(up.studied_minutes_today, 0) AS studied_minutes_today,
+          COALESCE(up.accent, 'en-US') AS accent,
+          up.vocab_progress,
+          up.grammar_progress,
+          up.last_active_date
+         FROM users u
+         LEFT JOIN user_progress up ON u.id = up.user_id
+         WHERE u.id = $1`,
+        [userId]
+      ),
+      query(
+        `SELECT id, term, phonetic, meaning, example, tag, created_at as "createdAt"
+         FROM user_notebooks
+         WHERE user_id = $1
+         ORDER BY created_at DESC`,
+        [userId]
+      )
+    ]);
 
     if (progressRes.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng' });
     }
 
     const row = progressRes.rows[0];
-
-    // 2. Fetch all notebooks for this user ordered by created_at DESC
-    const notebooksRes = await query(
-      `SELECT id, term, phonetic, meaning, example, tag, created_at as "createdAt"
-       FROM user_notebooks
-       WHERE user_id = $1
-       ORDER BY created_at DESC`,
-      [userId]
-    );
-
-    const safeXP = Math.max(Number(row.user_xp || 0), Number(row.progress_xp || 0));
-    const safeStreak = Math.max(Number(row.user_streak || 1), Number(row.progress_streak || 1));
-    const safeLevel = Math.max(Number(row.level || 1), Math.floor(safeXP / 300) + 1);
+    const safeXP = Number(row.xp || 0);
+    const safeStreak = Math.max(1, Number(row.streak || 1));
+    const safeLevel = Math.max(1, Number(row.level || 1), Math.floor(safeXP / 300) + 1);
 
     const vocabProgress = safeJsonParse(row.vocab_progress, {});
     const grammarProgress = safeJsonParse(row.grammar_progress, {});
@@ -245,6 +252,7 @@ export async function getProgressHandler(req, res) {
       profile: {
         id: row.id,
         email: row.email,
+        phone: row.phone,
         fullName: row.full_name,
         name: row.full_name,
         avatarUrl: row.avatar_url,
@@ -254,6 +262,16 @@ export async function getProgressHandler(req, res) {
         dailyGoalMinutes: row.daily_goal_minutes || 30,
         studiedMinutesToday: row.studied_minutes_today || 0,
         accent: row.accent || 'en-US'
+      },
+      user: {
+        id: row.id,
+        email: row.email,
+        phone: row.phone,
+        fullName: row.full_name,
+        avatarUrl: row.avatar_url,
+        xp: safeXP,
+        streak: safeStreak,
+        level: safeLevel
       },
       xp: safeXP,
       streak: safeStreak,
@@ -281,6 +299,7 @@ export async function getProgressHandler(req, res) {
  */
 export async function updateProgressHandler(req, res) {
   try {
+    await ensureDbSchema();
     const userId = req.user.id;
     const {
       vocabProgress,
@@ -307,18 +326,24 @@ export async function updateProgressHandler(req, res) {
 
     const incomingGrammar = safeJsonParse(grammarProgress || grammar_progress || {}, {});
 
-    // 1. Fetch current DB record from BOTH users and user_progress
-    const [userRes, progressRes] = await Promise.all([
-      query('SELECT xp, streak FROM users WHERE id = $1', [userId]),
-      query('SELECT * FROM user_progress WHERE user_id = $1', [userId])
-    ]);
+    // 1. Fetch current DB record with explicit aliases
+    const currentRes = await query(
+      `SELECT 
+        GREATEST(COALESCE(u.xp, 0), COALESCE(up.xp, 0)) AS xp,
+        GREATEST(COALESCE(u.streak, 1), COALESCE(up.streak, 1)) AS streak,
+        COALESCE(up.level, 1) AS level,
+        up.vocab_progress,
+        up.grammar_progress
+       FROM users u
+       LEFT JOIN user_progress up ON u.id = up.user_id
+       WHERE u.id = $1`,
+      [userId]
+    );
 
-    const userRow = userRes.rows[0] || {};
-    const progressRow = progressRes.rows[0] || {};
-
-    const currentDbXp = Math.max(Number(userRow.xp || 0), Number(progressRow.xp || 0));
-    const currentDbStreak = Math.max(Number(userRow.streak || 1), Number(progressRow.streak || 1));
-    const currentDbLevel = Math.max(Number(progressRow.level || 1), Math.floor(currentDbXp / 300) + 1);
+    const currentRow = currentRes.rows[0] || {};
+    const currentDbXp = Number(currentRow.xp || 0);
+    const currentDbStreak = Math.max(1, Number(currentRow.streak || 1));
+    const currentDbLevel = Math.max(1, Number(currentRow.level || 1), Math.floor(currentDbXp / 300) + 1);
 
     // ANTI-DOWNGRADE RULE: Math.max ensures XP and streak NEVER decrease!
     const incomingXpNum = xp !== undefined ? Number(xp) : 0;
@@ -330,62 +355,42 @@ export async function updateProgressHandler(req, res) {
     const incomingLevelNum = level !== undefined ? Number(level) : 1;
     const finalLevel = Math.max(currentDbLevel, incomingLevelNum, Math.floor(finalXP / 300) + 1);
 
-    let finalVocab = {};
-    let finalGrammar = {};
+    // Deep merge vocab_progress (preserves mastered cards, reviews, topic lastWordIndex, and never lets {} wipe DB)
+    const finalVocab = mergeVocabProgress(currentRow.vocab_progress, incomingVocab);
+    const existingGrammar = safeJsonParse(currentRow.grammar_progress, {});
+    const finalGrammar = { ...existingGrammar, ...incomingGrammar };
 
-    if (progressRes.rowCount === 0) {
-      finalVocab = mergeVocabProgress({}, incomingVocab);
-      finalGrammar = incomingGrammar;
+    // Atomic UPSERT into user_progress with GREATEST
+    await query(
+      `INSERT INTO user_progress 
+        (user_id, xp, streak, level, daily_goal_minutes, studied_minutes_today, accent, vocab_progress, grammar_progress, last_active_date, updated_at)
+       VALUES 
+        ($1, $2, $3, $4, COALESCE($5, 30), COALESCE($6, 0), COALESCE($7, 'en-US'), $8::jsonb, $9::jsonb, CURRENT_DATE, CURRENT_TIMESTAMP)
+       ON CONFLICT (user_id) DO UPDATE
+       SET xp = GREATEST(COALESCE(user_progress.xp, 0), EXCLUDED.xp),
+           streak = GREATEST(COALESCE(user_progress.streak, 1), EXCLUDED.streak),
+           level = GREATEST(COALESCE(user_progress.level, 1), EXCLUDED.level),
+           daily_goal_minutes = COALESCE(EXCLUDED.daily_goal_minutes, user_progress.daily_goal_minutes),
+           studied_minutes_today = COALESCE(EXCLUDED.studied_minutes_today, user_progress.studied_minutes_today),
+           accent = COALESCE(EXCLUDED.accent, user_progress.accent),
+           vocab_progress = EXCLUDED.vocab_progress,
+           grammar_progress = EXCLUDED.grammar_progress,
+           last_active_date = CURRENT_DATE,
+           updated_at = CURRENT_TIMESTAMP`,
+      [
+        userId,
+        finalXP,
+        finalStreak,
+        finalLevel,
+        dailyGoalMinutes !== undefined ? dailyGoalMinutes : null,
+        studiedMinutesToday !== undefined ? studiedMinutesToday : null,
+        accent !== undefined ? accent : null,
+        JSON.stringify(finalVocab),
+        JSON.stringify(finalGrammar)
+      ]
+    );
 
-      await query(
-        `INSERT INTO user_progress 
-          (user_id, xp, streak, level, daily_goal_minutes, studied_minutes_today, accent, vocab_progress, grammar_progress)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)`,
-        [
-          userId,
-          finalXP,
-          finalStreak,
-          finalLevel,
-          dailyGoalMinutes || 30,
-          studiedMinutesToday || 0,
-          accent || 'en-US',
-          JSON.stringify(finalVocab),
-          JSON.stringify(finalGrammar)
-        ]
-      );
-    } else {
-      finalVocab = mergeVocabProgress(progressRow.vocab_progress, incomingVocab);
-      const existingGrammar = safeJsonParse(progressRow.grammar_progress, {});
-      finalGrammar = { ...existingGrammar, ...incomingGrammar };
-
-      await query(
-        `UPDATE user_progress
-         SET xp = $1,
-             streak = $2,
-             level = $3,
-             daily_goal_minutes = COALESCE($4, daily_goal_minutes),
-             studied_minutes_today = COALESCE($5, studied_minutes_today),
-             accent = COALESCE($6, accent),
-             vocab_progress = $7::jsonb,
-             grammar_progress = $8::jsonb,
-             last_active_date = CURRENT_DATE,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE user_id = $9`,
-        [
-          finalXP,
-          finalStreak,
-          finalLevel,
-          dailyGoalMinutes !== undefined ? dailyGoalMinutes : null,
-          studiedMinutesToday !== undefined ? studiedMinutesToday : null,
-          accent !== undefined ? accent : null,
-          JSON.stringify(finalVocab),
-          JSON.stringify(finalGrammar),
-          userId
-        ]
-      );
-    }
-
-    // Keep users table in sync with highest XP and streak
+    // Also update users table using GREATEST
     await query(
       `UPDATE users 
        SET xp = GREATEST(COALESCE(xp, 0), $1),

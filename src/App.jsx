@@ -175,10 +175,15 @@ export function getLocalBackup(userId, email) {
   try {
     const candidates = [];
     if (email) {
-      const byEmail = localStorage.getItem(`lexiflow_backup_${email.trim().toLowerCase()}`);
+      const emailKey = email.trim().toLowerCase();
+      const byUserBackup = localStorage.getItem(`lexiflow_user_backup_${emailKey}`);
+      if (byUserBackup) candidates.push(JSON.parse(byUserBackup));
+      const byEmail = localStorage.getItem(`lexiflow_backup_${emailKey}`);
       if (byEmail) candidates.push(JSON.parse(byEmail));
     }
     if (userId) {
+      const byUserBackupId = localStorage.getItem(`lexiflow_user_backup_${userId}`);
+      if (byUserBackupId) candidates.push(JSON.parse(byUserBackupId));
       const byId = localStorage.getItem(`lexiflow_backup_${userId}`);
       if (byId) candidates.push(JSON.parse(byId));
       const statsById = localStorage.getItem(`lexiflow_stats_${userId}`);
@@ -191,7 +196,7 @@ export function getLocalBackup(userId, email) {
     const legacyStats = localStorage.getItem('lexiflow_v4_stats');
     if (legacyStats) {
       const parsedLegacy = JSON.parse(legacyStats);
-      const prog = getStoredVocabProgress();
+      const prog = getStoredVocabProgress(userId);
       candidates.push({ ...parsedLegacy, vocabProgress: prog });
     }
 
@@ -241,9 +246,12 @@ export function saveLocalBackup(userId, email, data = {}) {
       savedAt: Date.now()
     });
     if (email) {
-      localStorage.setItem(`lexiflow_backup_${email.trim().toLowerCase()}`, payload);
+      const emailKey = email.trim().toLowerCase();
+      localStorage.setItem(`lexiflow_user_backup_${emailKey}`, payload);
+      localStorage.setItem(`lexiflow_backup_${emailKey}`, payload);
     }
     if (userId) {
+      localStorage.setItem(`lexiflow_user_backup_${userId}`, payload);
       localStorage.setItem(`lexiflow_backup_${userId}`, payload);
       localStorage.setItem(`lexiflow_stats_${userId}`, JSON.stringify({
         xp: data.xp,
@@ -669,50 +677,44 @@ export default function App() {
     console.log('✅ [Login Hydration] Progress successfully hydrated for user:', user?.email, 'XP:', finalXP);
   };
 
-  // Logout handler: Flushes in-memory progress to PostgreSQL first, preserves permanent local backup, then disarms sync
-  const handleLogout = async () => {
+  // Logout handler: Anti-reset guard, preserves 100% durable local backup and disarms auto-saves
+  const handleLogout = () => {
     const curUser = currentUser;
-    const token = getStoredToken();
 
-    // 1. Immediately disarm background auto-saves
+    // Bước 1: Đặt isHydratedFromServer.current = false ngay dòng đầu tiên và hủy mọi bộ đếm auto-save
     isHydratedFromServer.current = false;
     pendingSavePayloadRef.current = null;
+    isSavingRef.current = false;
 
-    // 2. Before deleting token: flush user's latest progress to PostgreSQL if progress exists
-    if (curUser && token && (userStats.xp > 0 || Object.keys(activeUserProgressRef.current?.learnedWords || {}).length > 0)) {
-      try {
-        setSyncStatus('saving');
-        await userApi.updateProgress({
-          xp: userStats.xp,
-          level: userStats.level,
-          streak: userStats.streak,
-          vocabProgress: activeUserProgressRef.current || {}
-        });
-        setSyncStatus('synced');
-      } catch (err) {
-        console.warn('[Logout Flush Notice]:', err.message);
-      }
-    }
-
-    // 3. Preserve permanent local backup under email and userId (DO NOT DELETE!)
+    // Bước 2: Lưu bản backup tiến độ hiện tại vào localStorage để kể cả khi rớt mạng máy vẫn nhớ 100%
     if (curUser) {
-      saveLocalBackup(curUser.id, curUser.email, {
-        xp: userStats.xp,
-        level: userStats.level,
-        streak: userStats.streak,
-        name: curUser.fullName,
-        vocabProgress: activeUserProgressRef.current,
-        studyNotes
-      });
+      const currentProgress = {
+        xp: Number(userStats.xp || 0),
+        level: Number(userStats.level || 1),
+        streak: Math.max(1, Number(userStats.streak || 1)),
+        name: curUser.fullName || userStats.name,
+        vocabProgress: activeUserProgressRef.current || {},
+        grammarProgress: grammarCourses,
+        studyNotes: studyNotes || [],
+        savedAt: Date.now()
+      };
+
+      if (curUser.email) {
+        const emailKey = curUser.email.trim().toLowerCase();
+        localStorage.setItem('lexiflow_user_backup_' + emailKey, JSON.stringify(currentProgress));
+        localStorage.setItem('lexiflow_backup_' + emailKey, JSON.stringify(currentProgress));
+      }
       if (curUser.id) {
+        localStorage.setItem('lexiflow_user_backup_' + curUser.id, JSON.stringify(currentProgress));
+        localStorage.setItem('lexiflow_backup_' + curUser.id, JSON.stringify(currentProgress));
         saveStoredVocabProgress(activeUserProgressRef.current, curUser.id);
       }
     }
 
-    // 4. Remove token from localStorage
+    // Bước 3: Chỉ xóa token đăng nhập (lexiflow_token / lexiflow_auth_token) rồi mới đưa state giao diện về chế độ khách
     authApi.logout();
 
-    // 5. Reset React states cleanly to fresh Guest view
+    // Reset React states về Guest view
     activeUserProgressRef.current = {};
     setCurrentUser(null);
     setUserStats(GUEST_STATS);
