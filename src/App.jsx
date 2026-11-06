@@ -426,24 +426,37 @@ export default function App() {
     } catch {}
 
     const root = document.documentElement;
+    root.style.setProperty('--bg-dimmer', themeSettings.dimmerOpacity);
+    root.style.setProperty('--bg-blur', `${themeSettings.ecoMode ? 0 : themeSettings.bgBlur}px`);
     root.style.setProperty('--card-glass-bg', `rgba(15, 23, 42, ${themeSettings.cardGlassOpacity})`);
-    root.style.setProperty('--card-glass-blur', `${themeSettings.glassBlur}px`);
     root.style.setProperty(
       '--card-glass-border',
       `rgba(255, 255, 255, ${Math.max(0.08, 0.2 - themeSettings.cardGlassOpacity * 0.1)})`
     );
+
+    if (themeSettings.ecoMode) {
+      document.body.classList.add('eco-mode');
+    } else {
+      document.body.classList.remove('eco-mode');
+    }
   }, [themeSettings]);
 
   const handleUpdateTheme = (newSettings) => {
-    setThemeSettings(newSettings);
+    // Sanitize heavy base64: store strictly under dedicated local key, keep token in theme settings
+    const sanitized = { ...newSettings };
+    if (sanitized.customUrl?.startsWith('data:')) {
+      sanitized.customUrl = 'local_custom_image';
+    }
+
+    setThemeSettings(sanitized);
     try {
-      localStorage.setItem('lexiflow_theme_settings', JSON.stringify(newSettings));
+      localStorage.setItem('lexiflow_theme_settings', JSON.stringify(sanitized));
     } catch {}
 
     if (currentUser) {
       activeUserProgressRef.current = {
         ...(activeUserProgressRef.current || {}),
-        themeSettings: newSettings
+        themeSettings: sanitized
       };
       syncProgressToServer({
         vocabProgress: activeUserProgressRef.current

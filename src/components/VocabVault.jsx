@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, memo } from 'react';
 import {
   Layers,
   ArrowLeft,
@@ -56,8 +56,13 @@ export const SUBDECK_ICONS = {
   20: '🎯'
 };
 
-// Circular Progress Component
-export function CircularProgress({ percent = 0, size = 48, strokeWidth = 4, color = '#6366f1' }) {
+// Circular Progress Component (Memoized for high scroll performance)
+export const CircularProgress = memo(function CircularProgress({
+  percent = 0,
+  size = 48,
+  strokeWidth = 4,
+  color = '#6366f1'
+}) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percent / 100) * circumference;
@@ -83,7 +88,7 @@ export function CircularProgress({ percent = 0, size = 48, strokeWidth = 4, colo
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
-          className="transition-all duration-500 ease-out"
+          className="transition-[stroke-dashoffset] duration-500 ease-out"
           fill="transparent"
         />
       </svg>
@@ -92,7 +97,7 @@ export function CircularProgress({ percent = 0, size = 48, strokeWidth = 4, colo
       </span>
     </div>
   );
-}
+});
 
 // Helper to compute live accurate metrics for any subdeck
 export function getSubdeckMetrics(subdeck) {
@@ -147,7 +152,7 @@ export function getSubdeckMetrics(subdeck) {
   };
 }
 
-export default function VocabVault({
+function VocabVault({
   vocabCourses = [],
   setVocabCourses,
   selectedCourseId: controlledCourseId,
@@ -226,18 +231,57 @@ export default function VocabVault({
     return currentCourse.subdecks.find((s) => s.id === selectedSubdeckId) || currentCourse.subdecks[0];
   }, [currentCourse, selectedSubdeckId]);
 
+  // Memoized coarse metrics map for Level 1 courses to prevent heavy flattens on every render
+  const courseMetricsMap = useMemo(() => {
+    const map = {};
+    (vocabCourses || []).forEach((course) => {
+      const allCards = course.subdecks?.flatMap((s) => s.cards || []) || [];
+      const totalWords = course.totalWords || allCards.length || 1000;
+      const subdeckCount = course.subdecks?.length || 10;
+      let masteredCount = 0;
+      let learningCount = 0;
+      for (let i = 0; i < allCards.length; i++) {
+        const s = allCards[i].status;
+        if (s === 'mastered') masteredCount++;
+        else if (s === 'learning') learningCount++;
+      }
+      const studiedCount = masteredCount + learningCount;
+      const learnedPercent = totalWords > 0 ? Math.min(100, Math.round((studiedCount / totalWords) * 100)) : 0;
+      const masteredPercent = totalWords > 0 ? Math.min(100, Math.round((masteredCount / totalWords) * 100)) : 0;
+      map[course.id] = {
+        totalWords,
+        subdeckCount,
+        masteredCount,
+        learningCount,
+        studiedCount,
+        learnedPercent,
+        masteredPercent
+      };
+    });
+    return map;
+  }, [vocabCourses]);
+
+  // Memoized subdeck metrics map for Level 2
+  const subdeckMetricsMap = useMemo(() => {
+    const map = {};
+    (currentCourse?.subdecks || []).forEach((s) => {
+      map[s.id] = getSubdeckMetrics(s);
+    });
+    return map;
+  }, [currentCourse]);
+
   // Filtered subdecks for Level 2 with live metrics
   const filteredSubdecks = useMemo(() => {
     if (!currentCourse?.subdecks) return [];
     if (subdeckFilter === 'all') return currentCourse.subdecks;
     return currentCourse.subdecks.filter((s) => {
-      const m = getSubdeckMetrics(s);
+      const m = subdeckMetricsMap[s.id] || getSubdeckMetrics(s);
       if (subdeckFilter === 'due') return m.due > 0;
       if (subdeckFilter === 'learning') return m.learning > 0;
       if (subdeckFilter === 'mastered') return m.mastered > 0;
       return true;
     });
-  }, [currentCourse, subdeckFilter]);
+  }, [currentCourse, subdeckFilter, subdeckMetricsMap]);
 
   // ==========================================
   // LEVEL 1: LƯỚI KHÓA TỪ VỰNG TỔNG QUAN (GRID 3 CỘT)
@@ -270,19 +314,18 @@ export default function VocabVault({
         {/* 3-Column Course Grid (EngMasterAI Style) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {vocabCourses.map((course) => {
-            const allCards = course.subdecks?.flatMap((s) => s.cards || []) || [];
-            const totalWords = course.totalWords || allCards.length || 1000;
-            const subdeckCount = course.subdecks?.length || 10;
-            const masteredCount = allCards.filter((c) => c.status === 'mastered').length;
-            const learningCount = allCards.filter((c) => c.status === 'learning').length;
-            const studiedCount = masteredCount + learningCount;
-            const learnedPercent = totalWords > 0 ? Math.min(100, Math.round((studiedCount / totalWords) * 100)) : 0;
-            const masteredPercent = totalWords > 0 ? Math.min(100, Math.round((masteredCount / totalWords) * 100)) : 0;
+            const m = courseMetricsMap[course.id] || {};
+            const totalWords = m.totalWords || 1000;
+            const subdeckCount = m.subdeckCount || 10;
+            const masteredCount = m.masteredCount || 0;
+            const studiedCount = m.studiedCount || 0;
+            const learnedPercent = m.learnedPercent || 0;
+            const masteredPercent = m.masteredPercent || 0;
 
             return (
               <div
                 key={course.id}
-                className="rounded-3xl bg-slate-900/70 backdrop-blur-md border border-white/10 card-interactive card-shine p-6 flex flex-col justify-between transition-all duration-300 shadow-xl group"
+                className="rounded-3xl bg-slate-900/80 border border-white/10 card-interactive p-6 flex flex-col justify-between transition-[transform,border-color,background-color] duration-200 ease-out shadow-lg group"
               >
                 {/* Top: Center aligned large icon & title */}
                 <div className="space-y-4 text-center">
@@ -314,7 +357,7 @@ export default function VocabVault({
                     </div>
                     <div className="w-full bg-[#0B0F17] rounded-full h-1.5 overflow-hidden">
                       <div
-                        className="bg-indigo-500 h-full rounded-full transition-all duration-700 ease-out"
+                        className="bg-indigo-500 h-full rounded-full transition-[width] duration-500 ease-out"
                         style={{ width: `${learnedPercent}%` }}
                       />
                     </div>
@@ -415,7 +458,7 @@ export default function VocabVault({
         {/* Bento Grid: Sub-decks Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSubdecks.map((subdeck) => {
-            const metrics = getSubdeckMetrics(subdeck);
+            const metrics = subdeckMetricsMap[subdeck.id] || getSubdeckMetrics(subdeck);
             const topicIcon = SUBDECK_ICONS[subdeck.order] || '📘';
             return (
               <div
@@ -426,7 +469,7 @@ export default function VocabVault({
                   setLevel(3);
                   setShowWordList(false);
                 }}
-                className="p-6 rounded-3xl bg-slate-900/70 backdrop-blur-md border border-white/10 hover:border-indigo-500/50 card-interactive card-shine transition-all duration-300 cursor-pointer flex flex-col justify-between group shadow-xl relative overflow-hidden"
+                className="p-6 rounded-3xl bg-slate-900/80 border border-white/10 hover:border-indigo-500/50 card-interactive transition-[transform,border-color,background-color] duration-200 ease-out cursor-pointer flex flex-col justify-between group shadow-lg relative overflow-hidden"
               >
                 {/* Top: Icon + Title + Circular Progress */}
                 <div className="space-y-4">
@@ -570,7 +613,7 @@ export default function VocabVault({
             </div>
             <div className="w-full bg-[#0B0F17] rounded-full h-2 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 h-full rounded-full transition-all duration-700 ease-out"
+                className="bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 h-full rounded-full transition-[width] duration-500 ease-out"
                 style={{ width: `${Math.max(currentMetrics.percent, currentMetrics.studied > 0 ? 5 : 0)}%` }}
               />
             </div>
@@ -1059,3 +1102,5 @@ export default function VocabVault({
     </div>
   );
 }
+
+export default memo(VocabVault);

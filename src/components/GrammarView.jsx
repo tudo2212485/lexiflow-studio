@@ -547,7 +547,7 @@ export default function GrammarView({
                     </div>
                     <div className="w-full bg-[#0B0F17] rounded-full h-1.5 overflow-hidden">
                       <div
-                        className="bg-indigo-500 h-full rounded-full transition-all duration-700 ease-out"
+                        className="bg-indigo-500 h-full rounded-full transition-[width] duration-500 ease-out"
                         style={{ width: `${percent}%` }}
                       />
                     </div>
@@ -1094,7 +1094,7 @@ export default function GrammarView({
                       {/* Animated Progress Timeline Bar */}
                       <div className="w-full bg-slate-800/80 rounded-full h-1 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-150"
+                          className="bg-gradient-to-r from-indigo-500 via-cyan-400 to-emerald-400 h-full rounded-full transition-[width] duration-150"
                           style={{ width: `${slideProgress}%` }}
                         />
                       </div>
@@ -1175,7 +1175,7 @@ export default function GrammarView({
                                 setCurrentSlideIndex(idx);
                                 setSlideProgress(0);
                               }}
-                              className={`h-2 rounded-full transition-all ${
+                              className={`h-2 rounded-full transition-[width,background-color] duration-150 ${
                                 currentSlideIndex === idx
                                   ? 'w-6 bg-indigo-500'
                                   : 'w-2 bg-slate-700 hover:bg-slate-600'

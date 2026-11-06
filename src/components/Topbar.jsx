@@ -231,7 +231,7 @@ export default function Topbar({
   );
 
   return (
-    <header className="bg-[#0B0F17]/85 backdrop-blur-xl border-b border-white/10 sticky top-0 z-40">
+    <header className="bg-[#0B0F17]/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
       {/* ROW 1: BRAND LOGO (MOBILE) / TOGGLE & SEARCH (DESKTOP) + RIGHT CONTROLS */}
       <div className="h-14 md:h-16 px-3.5 sm:px-4 md:px-7 flex items-center justify-between gap-2.5">
         {/* MOBILE BRAND LOGO (Visible only on < 768px) */}

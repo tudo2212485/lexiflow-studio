@@ -43,7 +43,7 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`hidden lg:flex h-screen sticky top-0 bg-[#0B0F17]/85 backdrop-blur-xl border-r border-white/10 flex-col shrink-0 select-none transition-all duration-300 z-30 overflow-hidden ${
+      className={`hidden lg:flex h-screen sticky top-0 bg-[#0B0F17]/95 border-r border-white/10 flex-col shrink-0 select-none transition-[width] duration-200 ease-out z-30 overflow-hidden ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}
     >
@@ -105,7 +105,7 @@ export default function Sidebar({
                 title={item.label}
                 className={`flex items-center ${
                   isCollapsed ? 'justify-center p-3' : 'justify-between px-3.5 py-2.5'
-                } rounded-xl text-xs font-semibold transition-all duration-150 w-full group relative ${
+                } rounded-xl text-xs font-semibold transition-[background-color,color,border-color] duration-150 ease-out w-full group relative ${
                   isActive
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold border border-indigo-400/30'
                     : item.highlight

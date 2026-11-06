@@ -88,61 +88,71 @@
 }
 
 /* =========================================================================
-   THEME PRESETS & AMBIENT VISUAL MOTION
+   THEME PRESETS & AMBIENT VISUAL MOTION (GPU OPTIMIZED)
    ========================================================================= */
 
-/* Aurora Borealis Ambient Motion */
+:root {
+  --bg-dimmer: 0.65;
+  --bg-blur: 6px;
+  --card-glass-bg: rgba(15, 23, 42, 0.85);
+  --card-glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Aurora Borealis Ambient Motion - GPU accelerated translate3d */
 @keyframes aurora-float-1 {
   0%, 100% {
-    transform: translate(0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
     opacity: 0.65;
   }
   33% {
-    transform: translate(8%, -6%) scale(1.15);
+    transform: translate3d(8%, -6%, 0) scale3d(1.15, 1.15, 1);
     opacity: 0.85;
   }
   66% {
-    transform: translate(-6%, 8%) scale(0.95);
+    transform: translate3d(-6%, 8%, 0) scale3d(0.95, 0.95, 1);
     opacity: 0.7;
   }
 }
 
 @keyframes aurora-float-2 {
   0%, 100% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1) rotate(0deg);
     opacity: 0.55;
   }
   50% {
-    transform: translate(-10%, 10%) scale(1.2) rotate(15deg);
+    transform: translate3d(-10%, 10%, 0) scale3d(1.2, 1.2, 1) rotate(15deg);
     opacity: 0.8;
   }
 }
 
 @keyframes aurora-float-3 {
   0%, 100% {
-    transform: translate(0, 0) scale(0.9);
+    transform: translate3d(0, 0, 0) scale3d(0.9, 0.9, 1);
     opacity: 0.5;
   }
   40% {
-    transform: translate(12%, 12%) scale(1.15);
+    transform: translate3d(12%, 12%, 0) scale3d(1.15, 1.15, 1);
     opacity: 0.75;
   }
   80% {
-    transform: translate(-8%, -5%) scale(1.05);
+    transform: translate3d(-8%, -5%, 0) scale3d(1.05, 1.05, 1);
     opacity: 0.6;
   }
 }
 
 .animate-aurora-1 {
-  animation: aurora-float-1 22s ease-in-out infinite;
+  animation: aurora-float-1 26s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 .animate-aurora-2 {
-  animation: aurora-float-2 28s ease-in-out infinite;
+  animation: aurora-float-2 32s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 .animate-aurora-3 {
-  animation: aurora-float-3 25s ease-in-out infinite;
+  animation: aurora-float-3 28s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 /* Cyberpunk Neon 3D Grid */
@@ -162,34 +172,66 @@
   background-image: 
     linear-gradient(to right, rgba(99, 102, 241, 0.22) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(236, 72, 153, 0.22) 1px, transparent 1px);
-  transform: perspective(400px) rotateX(65deg);
+  transform: perspective(400px) rotateX(65deg) translate3d(0, 0, 0);
   transform-origin: center top;
-  animation: neon-grid-scroll 12s linear infinite;
+  animation: neon-grid-scroll 16s linear infinite;
+  will-change: background-position;
 }
 
 /* Staggered Entrance & Micro-interactions */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translate3d(0, 10px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Dynamic Glassmorphism Panels (Pre-blurred background architecture: NO per-card backdrop-filter) */
+.glass-panel {
+  background-color: var(--card-glass-bg, rgba(15, 23, 42, 0.85));
+  border: 1px solid var(--card-glass-border, rgba(255, 255, 255, 0.1));
+}
+
+/* Interactive Card Elevation & Glow (Zero-Repaint: Transform & Border only) */
+.card-interactive {
+  transition: transform 0.2s ease-out, border-color 0.2s ease-out, background-color 0.2s ease-out;
+  will-change: transform;
+}
+
+.card-interactive:hover {
+  transform: translate3d(0, -2px, 0);
+  border-color: rgba(99, 102, 241, 0.6);
+}
+
+/* Eco Mode (⚡ Chế độ Siêu Mượt: disables heavy background animations) */
+.eco-mode .animate-aurora-1,
+.eco-mode .animate-aurora-2,
+.eco-mode .animate-aurora-3,
+.eco-mode .cyber-grid-plane {
+  animation: none !important;
+  transform: none !important;
+}
+
+.eco-mode * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* Shimmer spotlight on hover */
 @keyframes shimmer-sweep {
   0% {
-    transform: translateX(-150%) skewX(-20deg);
+    transform: translate3d(-150%, 0, 0) skewX(-20deg);
   }
   100% {
-    transform: translateX(250%) skewX(-20deg);
+    transform: translate3d(250%, 0, 0) skewX(-20deg);
   }
 }
 
@@ -208,40 +250,18 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.06),
     transparent
   );
-  transform: translateX(-150%) skewX(-20deg);
+  transform: translate3d(-150%, 0, 0) skewX(-20deg);
   pointer-events: none;
-  transition: opacity 0.3s ease;
   opacity: 0;
+  transition: opacity 0.2s ease;
 }
 
 .card-shine:hover::after {
   opacity: 1;
-  animation: shimmer-sweep 1.2s ease-in-out;
-}
-
-/* Dynamic Glassmorphism Panels */
-.glass-panel {
-  background-color: var(--card-glass-bg, rgba(15, 23, 42, 0.75));
-  backdrop-filter: blur(var(--card-glass-blur, 12px));
-  -webkit-backdrop-filter: blur(var(--card-glass-blur, 12px));
-  border: 1px solid var(--card-glass-border, rgba(255, 255, 255, 0.1));
-}
-
-/* Interactive Card Elevation & Glow */
-.card-interactive {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.25s ease,
-              border-color 0.25s ease,
-              background-color 0.25s ease;
-}
-
-.card-interactive:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 30px -8px rgba(99, 102, 241, 0.22),
-              0 0 0 1px rgba(99, 102, 241, 0.4);
+  animation: shimmer-sweep 1s ease-in-out;
 }
 
 /* XP Float Notification Animation */

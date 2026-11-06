@@ -1,21 +1,38 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DEFAULT_THEME_SETTINGS, THEME_PRESETS } from './ThemeStudioModal';
 
-export default function BackgroundStudioView({ themeSettings = DEFAULT_THEME_SETTINGS }) {
+export default function BackgroundStudioView({
+  themeSettings = DEFAULT_THEME_SETTINGS,
+  customImageData = null
+}) {
   const current = { ...DEFAULT_THEME_SETTINGS, ...themeSettings };
-  const { preset, customUrl, dimmerOpacity, bgBlur } = current;
+  const { preset, customUrl, dimmerOpacity, bgBlur, ecoMode } = current;
+
+  // Resolve custom image URL (prefer in-memory prop, fallback to dedicated local storage key)
+  const resolvedCustomUrl = useMemo(() => {
+    if (preset !== 'custom') return null;
+    if (customImageData) return customImageData;
+    if (customUrl && customUrl !== 'local_custom_image') return customUrl;
+    try {
+      return localStorage.getItem('lexiflow_custom_bg_image') || null;
+    } catch {
+      return null;
+    }
+  }, [preset, customUrl, customImageData]);
 
   return (
     <div
-      className="fixed inset-0 pointer-events-none select-none z-0 overflow-hidden"
+      className={`fixed inset-0 pointer-events-none select-none -z-10 overflow-hidden transform-gpu ${
+        ecoMode ? 'eco-mode' : ''
+      }`}
       aria-hidden="true"
     >
-      {/* 1. VISUAL ART / MESH / IMAGE LAYER WITH BOKEH BLUR */}
+      {/* 1. VISUAL ART / MESH / IMAGE LAYER WITH SINGLE PRE-BLUR */}
       <div
-        className="absolute inset-0 transition-all duration-700 ease-out will-change-transform"
+        className="absolute inset-0 transform-gpu will-change-[filter,transform]"
         style={{
-          filter: bgBlur > 0 ? `blur(${bgBlur}px)` : 'none',
-          transform: bgBlur > 0 ? 'scale(1.05)' : 'none' // Prevent blurred edges from leaking white
+          filter: ecoMode ? 'none' : `blur(var(--bg-blur, ${bgBlur}px))`,
+          transform: !ecoMode && bgBlur > 0 ? 'scale3d(1.05, 1.05, 1)' : 'none'
         }}
       >
         {/* PRESET: AURORA BOREALIS */}
@@ -26,25 +43,34 @@ export default function BackgroundStudioView({ themeSettings = DEFAULT_THEME_SET
 
             {/* Aurora Wave 1: Indigo & Blue Ribbon */}
             <div
-              className="absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] rounded-full animate-aurora-1 opacity-70"
+              className={`absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] rounded-full opacity-70 transform-gpu ${
+                ecoMode ? '' : 'animate-aurora-1'
+              }`}
               style={{
-                background: 'radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, rgba(59, 130, 246, 0.25) 45%, transparent 70%)'
+                background:
+                  'radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, rgba(59, 130, 246, 0.25) 45%, transparent 70%)'
               }}
             />
 
             {/* Aurora Wave 2: Cyan & Teal Shimmer */}
             <div
-              className="absolute top-[25%] -right-[15%] w-[65vw] h-[65vw] rounded-full animate-aurora-2 opacity-65"
+              className={`absolute top-[25%] -right-[15%] w-[65vw] h-[65vw] rounded-full opacity-65 transform-gpu ${
+                ecoMode ? '' : 'animate-aurora-2'
+              }`}
               style={{
-                background: 'radial-gradient(circle, rgba(20, 184, 166, 0.4) 0%, rgba(6, 182, 212, 0.25) 40%, transparent 70%)'
+                background:
+                  'radial-gradient(circle, rgba(20, 184, 166, 0.4) 0%, rgba(6, 182, 212, 0.25) 40%, transparent 70%)'
               }}
             />
 
             {/* Aurora Wave 3: Purple & Violet Heart */}
             <div
-              className="absolute -bottom-[20%] left-[20%] w-[75vw] h-[65vw] rounded-full animate-aurora-3 opacity-60"
+              className={`absolute -bottom-[20%] left-[20%] w-[75vw] h-[65vw] rounded-full opacity-60 transform-gpu ${
+                ecoMode ? '' : 'animate-aurora-3'
+              }`}
               style={{
-                background: 'radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, rgba(139, 92, 246, 0.2) 45%, transparent 70%)'
+                background:
+                  'radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, rgba(139, 92, 246, 0.2) 45%, transparent 70%)'
               }}
             />
           </div>
@@ -59,28 +85,27 @@ export default function BackgroundStudioView({ themeSettings = DEFAULT_THEME_SET
 
             {/* Neon Nebula orbs */}
             <div
-              className="absolute top-10 left-1/4 w-[50vw] h-[35vw] rounded-full opacity-40 blur-3xl"
+              className="absolute top-10 left-1/4 w-[50vw] h-[35vw] rounded-full opacity-40 blur-2xl transform-gpu"
               style={{
-                background: 'radial-gradient(circle, rgba(236, 72, 153, 0.35) 0%, rgba(147, 51, 234, 0.2) 50%, transparent 75%)'
+                background:
+                  'radial-gradient(circle, rgba(236, 72, 153, 0.35) 0%, rgba(147, 51, 234, 0.2) 50%, transparent 75%)'
               }}
             />
 
-            {/* 3D Scrolling Perspective Grid */}
-            <div className="cyber-grid-plane opacity-75" />
+            {/* 3D Perspective Grid */}
+            <div className={`cyber-grid-plane opacity-75 ${ecoMode ? 'eco-static-grid' : ''}`} />
           </div>
         )}
 
         {/* PRESET: LOFI STUDY NIGHT */}
         {preset === 'lofi' && (
           <div className="absolute inset-0 bg-[#0C0F17]">
-            {/* High quality cozy night study art */}
             <div
-              className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+              className="absolute inset-0 bg-cover bg-center"
               style={{
                 backgroundImage: `url(${THEME_PRESETS.find((p) => p.id === 'lofi')?.imageUrl})`
               }}
             />
-            {/* Warm room lamp glow overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F17] via-transparent to-amber-950/20" />
             <div
               className="absolute top-0 right-0 w-[50vw] h-[50vw] rounded-full opacity-35"
@@ -105,22 +130,23 @@ export default function BackgroundStudioView({ themeSettings = DEFAULT_THEME_SET
         )}
 
         {/* PRESET: CUSTOM USER WALLPAPER */}
-        {preset === 'custom' && customUrl && (
+        {preset === 'custom' && resolvedCustomUrl && (
           <div className="absolute inset-0 bg-[#070A13]">
             <img
-              src={customUrl}
+              src={resolvedCustomUrl}
               alt="Custom background"
               className="w-full h-full object-cover object-center"
+              loading="lazy"
             />
           </div>
         )}
       </div>
 
-      {/* 2. SMART DIMMER & WCAG AAA CONTRAST OVERLAY */}
+      {/* 2. SMART DIMMER & WCAG AAA CONTRAST OVERLAY (Dynamic CSS Variable Driven) */}
       <div
-        className="absolute inset-0 transition-colors duration-500"
+        className="absolute inset-0 transform-gpu"
         style={{
-          backgroundColor: `rgba(11, 15, 23, ${Math.min(0.95, Math.max(0.15, dimmerOpacity))})`
+          backgroundColor: `rgba(11, 15, 23, var(--bg-dimmer, ${dimmerOpacity}))`
         }}
       />
     </div>
