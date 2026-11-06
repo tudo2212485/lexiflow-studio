@@ -59,6 +59,35 @@ function calculateMatchAccuracy(spoken, target) {
   return Math.min(100, Math.round((matched / targetWords.length) * 100));
 }
 
+// Compute active word index within line using character-weighted distribution (Apple Music / Spotify Sing style)
+export function computeActiveWordIndex(line, currentTime) {
+  if (!line || !line.en) return -1;
+  const words = line.en.split(' ');
+  if (words.length === 0) return -1;
+
+  if (currentTime < line.startTime - 0.05) return -1;
+  if (currentTime >= line.endTime) return words.length;
+
+  const duration = Math.max(0.1, line.endTime - line.startTime);
+  const elapsed = Math.max(0, Math.min(duration, currentTime - line.startTime));
+  const progress = elapsed / duration;
+
+  // Weight words by stripped alphanumeric length (min weight 2 so short words have screen time)
+  const weights = words.map((w) => Math.max(2, w.replace(/[^a-zA-Z0-9]/g, '').length));
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+  let cumulative = 0;
+  for (let i = 0; i < words.length; i++) {
+    const startFrac = cumulative / totalWeight;
+    cumulative += weights[i];
+    const endFrac = cumulative / totalWeight;
+    if (progress >= startFrac && progress < endFrac) {
+      return i;
+    }
+  }
+  return words.length - 1;
+}
+
 export default function VideoImmersionView({
   onPinNote,
   onAwardXP,
@@ -91,6 +120,7 @@ export default function VideoImmersionView({
   const [subtitleMode, setSubtitleMode] = useState('bilingual'); // 'bilingual' | 'en' | 'ear_training'
   const [isLoopSentence, setIsLoopSentence] = useState(false);
   const [activeSubtitleIndex, setActiveSubtitleIndex] = useState(0);
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
 
   // Active right column tab: 'transcript' | 'gap_fill' | 'vocab'
   const [activeTab, setActiveTab] = useState('transcript');
@@ -121,6 +151,7 @@ export default function VideoImmersionView({
   const containerRef = useRef(null);
   const timerRef = useRef(null);
   const activeSubtitleIndexRef = useRef(0);
+  const activeWordIndexRef = useRef(0);
   const recognitionRef = useRef(null);
   const transcriptListRef = useRef(null);
   const activeLineRef = useRef(null);
@@ -151,6 +182,14 @@ export default function VideoImmersionView({
       });
     }
   }, [activeSubtitleIndex, activeTab]);
+
+  // Reset indices on video switch
+  useEffect(() => {
+    setActiveSubtitleIndex(0);
+    activeSubtitleIndexRef.current = 0;
+    setActiveWordIndex(0);
+    activeWordIndexRef.current = 0;
+  }, [selectedVideo]);
 
   // -----------------------------------------------------------------------
   // YOUTUBE IFRAME PLAYER API INITIALIZATION
@@ -224,7 +263,7 @@ export default function VideoImmersionView({
   }, [selectedVideo]);
 
   // -----------------------------------------------------------------------
-  // REAL-TIME SUBTITLE TIME SYNC & LOOP SENTENCE ENGINE (60FPS OPTIMIZED)
+  // REAL-TIME SUBTITLE TIME SYNC & WORD KARAOKE HIGHLIGHT (60FPS OPTIMIZED)
   // -----------------------------------------------------------------------
   useEffect(() => {
     if (!selectedVideo || !isPlayerReady) return;
@@ -250,25 +289,49 @@ export default function VideoImmersionView({
 
         // 2. Find currently matching subtitle cue
         const foundIdx = transcript.findIndex(
-          (t) => curTime >= t.startTime - 0.2 && curTime <= t.endTime + 0.3
+          (t) => curTime >= t.startTime - 0.15 && curTime <= t.endTime + 0.2
         );
 
-        // Crucial performance optimization: ONLY update state when cue changes!
-        if (foundIdx !== -1 && foundIdx !== curIdx) {
-          setActiveSubtitleIndex(foundIdx);
+        const targetIdx = foundIdx !== -1 ? foundIdx : curIdx;
+        const targetLine = transcript[targetIdx];
 
-          // In Gap-Fill mode: if previous cue had blank and was unanswered, gently pause
-          if (activeTab === 'gap_fill') {
-            const cue = transcript[foundIdx];
-            if (cue && cue.keyWord && !completedGapIndices.has(foundIdx)) {
-              // Pause at start of cue so user can listen and answer
+        // 3. Compute active word index inside target cue (100ms Word-by-Word Engine)
+        let wordIdx = -1;
+        if (targetLine && curTime >= targetLine.startTime - 0.05 && curTime <= targetLine.endTime + 0.1) {
+          wordIdx = computeActiveWordIndex(targetLine, curTime);
+        } else if (targetLine && curTime > targetLine.endTime) {
+          wordIdx = targetLine.en.split(' ').length;
+        }
+
+        // 4. Performance Guard: ONLY update React state if cue or word index changed!
+        const cueChanged = foundIdx !== -1 && foundIdx !== curIdx;
+        const wordChanged = wordIdx !== activeWordIndexRef.current;
+
+        if (cueChanged || wordChanged) {
+          if (cueChanged) {
+            setActiveSubtitleIndex(foundIdx);
+            activeSubtitleIndexRef.current = foundIdx;
+
+            // In Gap-Fill mode: auto-pause at unanswered blank
+            if (activeTab === 'gap_fill') {
+              const cue = transcript[foundIdx];
+              if (cue && cue.keyWord && !completedGapIndices.has(foundIdx)) {
+                if (typeof playerRef.current.pauseVideo === 'function') {
+                  playerRef.current.pauseVideo();
+                  setIsPlaying(false);
+                }
+              }
             }
+          }
+          if (wordChanged) {
+            setActiveWordIndex(wordIdx);
+            activeWordIndexRef.current = wordIdx;
           }
         }
       } catch {
         // Player might be re-buffering
       }
-    }, 250);
+    }, 100);
 
     return () => clearInterval(interval);
   }, [selectedVideo, isPlayerReady, isLoopSentence, activeTab, completedGapIndices]);
@@ -281,6 +344,10 @@ export default function VideoImmersionView({
       playerRef.current.seekTo(line.startTime, true);
       playerRef.current.playVideo();
       setActiveSubtitleIndex(index);
+      activeSubtitleIndexRef.current = index;
+      const initialWordIdx = computeActiveWordIndex(line, line.startTime);
+      setActiveWordIndex(initialWordIdx);
+      activeWordIndexRef.current = initialWordIdx;
       setIsPlaying(true);
     }
   }, []);
@@ -657,6 +724,11 @@ export default function VideoImmersionView({
                   <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/75 text-[10px] font-bold text-red-300 border border-white/10">
                     {video.accent}
                   </span>
+                  {video.category === 'podcast' && (
+                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-purple-600/90 text-[10px] font-bold text-white shadow border border-purple-400/40">
+                      🎙️ PODCAST
+                    </span>
+                  )}
                 </div>
 
                 {/* Metadata */}
@@ -664,6 +736,11 @@ export default function VideoImmersionView({
                   <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-red-300 transition line-clamp-2 leading-snug">
                     {video.title}
                   </h3>
+                  {video.podcastDetails?.topic && (
+                    <span className="inline-block mt-1 text-[10px] font-medium text-purple-300 bg-purple-950/50 px-2 py-0.5 rounded-md border border-purple-500/25">
+                      📌 {video.podcastDetails.topic}
+                    </span>
+                  )}
                   <p className="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
                     <span>{video.channel}</span>
                     <span className="px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-300 font-bold text-[10px]">
@@ -734,6 +811,7 @@ export default function VideoImmersionView({
                     className="w-full px-3 py-2 rounded-xl bg-slate-950/80 border border-white/10 text-white focus:outline-none focus:border-red-500"
                   >
                     <option value="music">🎵 Âm nhạc US-UK</option>
+                    <option value="podcast">🎙️ Podcast Tiếng Anh</option>
                     <option value="short_clips">⚡ Short Clips & Slang</option>
                     <option value="movie">🍿 Phim & Sitcom</option>
                     <option value="ted_talks">🧠 TED-Ed & Học thuật</option>
@@ -784,6 +862,12 @@ export default function VideoImmersionView({
         </button>
 
         <div className="flex items-center gap-2">
+          {selectedVideo.category === 'podcast' && (
+            <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1">
+              <span>🎙️</span>
+              <span>Podcast Studio</span>
+            </span>
+          )}
           <span className="px-2.5 py-1 rounded-lg bg-red-500/15 text-red-300 border border-red-500/25 text-xs font-bold">
             {selectedVideo.accent}
           </span>
@@ -815,20 +899,34 @@ export default function VideoImmersionView({
               </span>
             </div>
 
-            {/* English Interactive Text */}
-            <div className="text-base sm:text-lg font-bold text-white leading-relaxed flex flex-wrap gap-1.5 pt-1">
-              {activeLine?.en.split(' ').map((word, i) => (
-                <span
-                  key={i}
-                  onClick={(e) => handleWordClick(e, word, activeLine)}
-                  className={`cursor-pointer px-1.5 py-0.5 rounded-lg hover:bg-indigo-600 hover:text-white transition-colors duration-150 ${
-                    subtitleMode === 'ear_training' ? 'blur-sm hover:blur-none transition-all' : ''
-                  }`}
-                  title="Chạm để tra nghĩa và phát âm"
-                >
-                  {word}
-                </span>
-              ))}
+            {/* English Interactive Text with Word-by-Word Karaoke Highlight */}
+            <div className="text-base sm:text-lg font-bold leading-relaxed flex flex-wrap gap-1.5 pt-1 items-center">
+              {activeLine?.en.split(' ').map((word, i) => {
+                let wordStyle = 'text-white/45';
+                if (activeWordIndex >= 0) {
+                  if (i < activeWordIndex) {
+                    wordStyle = 'text-indigo-300 font-semibold';
+                  } else if (i === activeWordIndex) {
+                    wordStyle =
+                      'text-amber-300 font-extrabold scale-105 inline-block drop-shadow-[0_0_12px_rgba(251,191,36,0.9)] underline underline-offset-4 decoration-amber-400 bg-amber-500/20 rounded px-1 -mx-0.5 transition-transform duration-100';
+                  } else {
+                    wordStyle = 'text-white/45';
+                  }
+                }
+
+                return (
+                  <span
+                    key={i}
+                    onClick={(e) => handleWordClick(e, word, activeLine)}
+                    className={`cursor-pointer px-1 py-0.5 rounded-lg hover:bg-indigo-600 hover:text-white transition-all duration-150 ${wordStyle} ${
+                      subtitleMode === 'ear_training' ? 'blur-sm hover:blur-none transition-all' : ''
+                    }`}
+                    title="Chạm để tra nghĩa và phát âm"
+                  >
+                    {word}
+                  </span>
+                );
+              })}
             </div>
 
             {/* Vietnamese Translation (Hidden in 'en' only mode) */}
@@ -929,6 +1027,97 @@ export default function VideoImmersionView({
               </button>
             </div>
           </div>
+
+          {/* PODCAST SUMMARY & KEY TAKEAWAYS PANEL (VISIBLE FOR PODCASTS) */}
+          {selectedVideo.podcastDetails && (
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-purple-950/40 via-slate-900/90 to-slate-950/90 border border-purple-500/30 shadow-xl space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-500/20 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🎙️</span>
+                  <h4 className="text-sm font-bold text-purple-200">
+                    Bản Tin Tóm Tắt & Key Takeaways Podcast
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    {selectedVideo.podcastDetails.targetLevel}
+                  </span>
+                </div>
+                <span className="text-[11px] text-purple-400 font-semibold">
+                  Host: {selectedVideo.podcastDetails.host}
+                </span>
+              </div>
+
+              {/* 3 Key Takeaways */}
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>3 Ý Chính Rút Ra (Key Takeaways):</span>
+                </p>
+                <ul className="space-y-1.5 pl-0.5">
+                  {selectedVideo.podcastDetails.keyTakeaways?.map((takeaway, tIdx) => (
+                    <li key={tIdx} className="text-xs text-slate-300 flex items-start gap-2.5 leading-relaxed">
+                      <span className="w-4 h-4 rounded-full bg-purple-500/25 text-purple-300 border border-purple-500/30 flex items-center justify-center text-[10px] font-extrabold shrink-0 mt-0.5 shadow-sm">
+                        {tIdx + 1}
+                      </span>
+                      <span>{takeaway}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* High-Scoring Phrases & Idioms */}
+              {selectedVideo.podcastDetails.highScoringPhrases?.length > 0 && (
+                <div className="pt-2.5 border-t border-purple-500/20 space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                    <Award className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Cụm Từ Ăn Điểm IELTS & Giao Tiếp Đỉnh Cao:</span>
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedVideo.podcastDetails.highScoringPhrases.map((phraseObj, pIdx) => (
+                      <div
+                        key={pIdx}
+                        className="p-2.5 rounded-xl bg-slate-950/70 border border-white/5 hover:border-purple-500/40 transition flex items-start justify-between gap-2 group"
+                      >
+                        <div className="space-y-0.5 min-w-0">
+                          <span className="text-xs font-bold text-amber-300 block truncate group-hover:text-amber-200">
+                            {phraseObj.phrase}
+                          </span>
+                          <p className="text-[11px] text-slate-300 leading-snug">
+                            {phraseObj.meaning}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                          <button
+                            onClick={() => onSpeak && onSpeak(phraseObj.phrase)}
+                            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+                            title="Phát âm chuẩn"
+                          >
+                            <Volume2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (onPinNote) {
+                                onPinNote({
+                                  term: phraseObj.phrase,
+                                  phonetic: '',
+                                  meaning: phraseObj.meaning,
+                                  example: `From Podcast: ${selectedVideo.title}`,
+                                  tag: 'Podcast IELTS'
+                                });
+                              }
+                            }}
+                            className="p-1 rounded-lg bg-purple-900/50 hover:bg-purple-800 text-purple-300 hover:text-white border border-purple-500/30 transition"
+                            title="Lưu vào Sổ tay"
+                          >
+                            <Pin className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ===================================================================
@@ -992,16 +1181,35 @@ export default function VideoImmersionView({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1 min-w-0">
-                        <div className="text-xs font-bold text-white flex flex-wrap gap-1 leading-relaxed">
-                          {line.en.split(' ').map((w, wi) => (
-                            <span
-                              key={wi}
-                              onClick={(e) => handleWordClick(e, w, line)}
-                              className="hover:text-indigo-400 hover:underline transition-colors"
-                            >
-                              {w}
-                            </span>
-                          ))}
+                        {/* English line with Word-by-Word Highlight on active card */}
+                        <div className="text-xs font-bold flex flex-wrap gap-1 leading-relaxed items-center">
+                          {line.en.split(' ').map((w, wi) => {
+                            let wordStyle = isActive ? 'text-white/45' : 'text-slate-300';
+
+                            if (isActive && activeWordIndex >= 0) {
+                              if (wi < activeWordIndex) {
+                                wordStyle = 'text-indigo-300 font-semibold';
+                              } else if (wi === activeWordIndex) {
+                                wordStyle =
+                                  'text-amber-300 font-extrabold scale-105 inline-block drop-shadow-[0_0_10px_rgba(251,191,36,0.9)] underline underline-offset-4 decoration-amber-400 bg-amber-500/20 rounded px-0.5';
+                              } else {
+                                wordStyle = 'text-white/45';
+                              }
+                            } else if (!isActive) {
+                              wordStyle = idx < activeSubtitleIndex ? 'text-slate-300' : 'text-slate-400';
+                            }
+
+                            return (
+                              <span
+                                key={wi}
+                                onClick={(e) => handleWordClick(e, w, line)}
+                                className={`cursor-pointer px-0.5 py-0.5 rounded transition-all duration-150 hover:bg-indigo-600 hover:text-white ${wordStyle}`}
+                                title="Chạm để tra nghĩa"
+                              >
+                                {w}
+                              </span>
+                            );
+                          })}
                         </div>
                         <p className="text-[11px] text-slate-400 leading-normal">{line.vi}</p>
                       </div>
@@ -1246,3 +1454,4 @@ export default function VideoImmersionView({
     </div>
   );
 }
+
