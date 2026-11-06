@@ -87,3 +87,184 @@
   scrollbar-width: none;
 }
 
+/* =========================================================================
+   THEME PRESETS & AMBIENT VISUAL MOTION
+   ========================================================================= */
+
+/* Aurora Borealis Ambient Motion */
+@keyframes aurora-float-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.65;
+  }
+  33% {
+    transform: translate(8%, -6%) scale(1.15);
+    opacity: 0.85;
+  }
+  66% {
+    transform: translate(-6%, 8%) scale(0.95);
+    opacity: 0.7;
+  }
+}
+
+@keyframes aurora-float-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate(-10%, 10%) scale(1.2) rotate(15deg);
+    opacity: 0.8;
+  }
+}
+
+@keyframes aurora-float-3 {
+  0%, 100% {
+    transform: translate(0, 0) scale(0.9);
+    opacity: 0.5;
+  }
+  40% {
+    transform: translate(12%, 12%) scale(1.15);
+    opacity: 0.75;
+  }
+  80% {
+    transform: translate(-8%, -5%) scale(1.05);
+    opacity: 0.6;
+  }
+}
+
+.animate-aurora-1 {
+  animation: aurora-float-1 22s ease-in-out infinite;
+}
+
+.animate-aurora-2 {
+  animation: aurora-float-2 28s ease-in-out infinite;
+}
+
+.animate-aurora-3 {
+  animation: aurora-float-3 25s ease-in-out infinite;
+}
+
+/* Cyberpunk Neon 3D Grid */
+@keyframes neon-grid-scroll {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 40px;
+  }
+}
+
+.cyber-grid-plane {
+  position: absolute;
+  inset: -100% -50%;
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(99, 102, 241, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(236, 72, 153, 0.22) 1px, transparent 1px);
+  transform: perspective(400px) rotateX(65deg);
+  transform-origin: center top;
+  animation: neon-grid-scroll 12s linear infinite;
+}
+
+/* Staggered Entrance & Micro-interactions */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Shimmer spotlight on hover */
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(250%) skewX(-20deg);
+  }
+}
+
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  transform: translateX(-150%) skewX(-20deg);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  opacity: 0;
+}
+
+.card-shine:hover::after {
+  opacity: 1;
+  animation: shimmer-sweep 1.2s ease-in-out;
+}
+
+/* Dynamic Glassmorphism Panels */
+.glass-panel {
+  background-color: var(--card-glass-bg, rgba(15, 23, 42, 0.75));
+  backdrop-filter: blur(var(--card-glass-blur, 12px));
+  -webkit-backdrop-filter: blur(var(--card-glass-blur, 12px));
+  border: 1px solid var(--card-glass-border, rgba(255, 255, 255, 0.1));
+}
+
+/* Interactive Card Elevation & Glow */
+.card-interactive {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s ease,
+              border-color 0.25s ease,
+              background-color 0.25s ease;
+}
+
+.card-interactive:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px -8px rgba(99, 102, 241, 0.22),
+              0 0 0 1px rgba(99, 102, 241, 0.4);
+}
+
+/* XP Float Notification Animation */
+@keyframes float-up-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.85);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.05);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(-18px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(0.9);
+  }
+}
+
+.animate-float-up {
+  animation: float-up-fade 1.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

@@ -14,8 +14,10 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  Brain
+  Brain,
+  Palette
 } from 'lucide-react';
+import AnimatedXPCounter from './AnimatedXPCounter';
 
 
 export default function Topbar({
@@ -35,7 +37,8 @@ export default function Topbar({
   onNavigateTab,
   onSpeak,
   isSidebarCollapsed,
-  setIsSidebarCollapsed
+  setIsSidebarCollapsed,
+  onOpenThemeStudio
 }) {
   // Real-time Global Search indexing
   const searchResults = useMemo(() => {
@@ -228,7 +231,7 @@ export default function Topbar({
   );
 
   return (
-    <header className="bg-[#0B0F17]/95 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-40">
+    <header className="bg-[#0B0F17]/85 backdrop-blur-xl border-b border-white/10 sticky top-0 z-40">
       {/* ROW 1: BRAND LOGO (MOBILE) / TOGGLE & SEARCH (DESKTOP) + RIGHT CONTROLS */}
       <div className="h-14 md:h-16 px-3.5 sm:px-4 md:px-7 flex items-center justify-between gap-2.5">
         {/* MOBILE BRAND LOGO (Visible only on < 768px) */}
@@ -280,6 +283,16 @@ export default function Topbar({
 
         {/* RIGHT ACTION CONTROLS */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Theme & Background Studio Toggle */}
+          <button
+            onClick={onOpenThemeStudio}
+            className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-xs font-semibold text-purple-300 flex items-center gap-1.5 transition shrink-0 hover:scale-105 active:scale-95"
+            title="Tùy chỉnh không gian học (Theme & Background Studio)"
+          >
+            <Palette className="w-4 h-4 text-purple-400 shrink-0" />
+            <span className="hidden sm:inline">Giao diện</span>
+          </button>
+
           {/* Toggle Study Note Drawer */}
           <button
             onClick={() =>
@@ -314,11 +327,11 @@ export default function Topbar({
           </button>
 
           {/* Level / XP */}
-          {currentUser && (
-            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-[11px] sm:text-xs font-bold text-indigo-300 shrink-0">
+          {(currentUser || (userStats && userStats.xp > 0)) && (
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-[11px] sm:text-xs font-bold text-indigo-300 shrink-0 relative overflow-visible">
               <Award className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span className="hidden sm:inline">Cấp {currentUser.level || userStats?.level || 1} •</span>
-              <span>{Number(currentUser.xp ?? userStats?.xp ?? 0).toLocaleString()} XP</span>
+              <span className="hidden sm:inline">Cấp {currentUser?.level || userStats?.level || 1} •</span>
+              <AnimatedXPCounter value={Number(currentUser?.xp ?? userStats?.xp ?? 0)} />
             </div>
           )}
 

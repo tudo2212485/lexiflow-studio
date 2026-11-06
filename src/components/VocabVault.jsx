@@ -282,7 +282,7 @@ export default function VocabVault({
             return (
               <div
                 key={course.id}
-                className="rounded-3xl bg-[#131B2E] border border-slate-800/80 hover:border-indigo-500/40 p-6 flex flex-col justify-between transition-all duration-200 shadow-lg group hover:-translate-y-1"
+                className="rounded-3xl bg-slate-900/70 backdrop-blur-md border border-white/10 card-interactive card-shine p-6 flex flex-col justify-between transition-all duration-300 shadow-xl group"
               >
                 {/* Top: Center aligned large icon & title */}
                 <div className="space-y-4 text-center">
@@ -314,7 +314,7 @@ export default function VocabVault({
                     </div>
                     <div className="w-full bg-[#0B0F17] rounded-full h-1.5 overflow-hidden">
                       <div
-                        className="bg-indigo-500 h-full rounded-full transition-all duration-500"
+                        className="bg-indigo-500 h-full rounded-full transition-all duration-700 ease-out"
                         style={{ width: `${learnedPercent}%` }}
                       />
                     </div>
@@ -426,7 +426,7 @@ export default function VocabVault({
                   setLevel(3);
                   setShowWordList(false);
                 }}
-                className="p-6 rounded-3xl bg-[#131B2E] hover:bg-[#162038] border border-slate-800/80 hover:border-indigo-500/50 transition-all duration-300 cursor-pointer flex flex-col justify-between group shadow-xl hover:-translate-y-1 relative overflow-hidden"
+                className="p-6 rounded-3xl bg-slate-900/70 backdrop-blur-md border border-white/10 hover:border-indigo-500/50 card-interactive card-shine transition-all duration-300 cursor-pointer flex flex-col justify-between group shadow-xl relative overflow-hidden"
               >
                 {/* Top: Icon + Title + Circular Progress */}
                 <div className="space-y-4">
@@ -570,7 +570,7 @@ export default function VocabVault({
             </div>
             <div className="w-full bg-[#0B0F17] rounded-full h-2 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 h-full rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 h-full rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${Math.max(currentMetrics.percent, currentMetrics.studied > 0 ? 5 : 0)}%` }}
               />
             </div>

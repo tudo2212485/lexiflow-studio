@@ -18,6 +18,8 @@ import SmartNotebookDrawer from './components/SmartNotebookDrawer';
 import StudySessionModal from './components/StudySessionModal';
 import AILab from './components/AILab';
 import AuthModal from './components/AuthModal';
+import BackgroundStudioView from './components/BackgroundStudioView';
+import ThemeStudioModal, { DEFAULT_THEME_SETTINGS } from './components/ThemeStudioModal';
 import { authApi, userApi, getStoredToken } from './services/api';
 
 // Default clean guest stats (no user data leakage when unauthenticated)
@@ -85,6 +87,7 @@ export function mergeClientVocabProgress(base = {}, overlay = {}) {
       k !== 'lastActiveTopicId' &&
       k !== 'starredWords' &&
       k !== 'starredCardIds' &&
+      k !== 'themeSettings' &&
       v &&
       typeof v === 'object'
     ) {
@@ -136,7 +139,8 @@ export function mergeClientVocabProgress(base = {}, overlay = {}) {
     topicState: mergedTopics,
     starredWords: mergedStarred,
     starredCardIds: mergedStarred,
-    lastActiveTopicId: o.lastActiveTopicId || b.lastActiveTopicId || null
+    lastActiveTopicId: o.lastActiveTopicId || b.lastActiveTopicId || null,
+    ...(o.themeSettings || b.themeSettings ? { themeSettings: o.themeSettings || b.themeSettings } : {})
   };
 }
 
@@ -405,6 +409,53 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState('synced'); // 'synced' | 'saving' | 'error'
 
+  // Theme & Background Customization State
+  const [themeSettings, setThemeSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lexiflow_theme_settings');
+      if (saved) return { ...DEFAULT_THEME_SETTINGS, ...JSON.parse(saved) };
+    } catch {}
+    return DEFAULT_THEME_SETTINGS;
+  });
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+
+  // Sync themeSettings CSS variables to DOM
+  useEffect(() => {
+    try {
+      localStorage.setItem('lexiflow_theme_settings', JSON.stringify(themeSettings));
+    } catch {}
+
+    const root = document.documentElement;
+    root.style.setProperty('--card-glass-bg', `rgba(15, 23, 42, ${themeSettings.cardGlassOpacity})`);
+    root.style.setProperty('--card-glass-blur', `${themeSettings.glassBlur}px`);
+    root.style.setProperty(
+      '--card-glass-border',
+      `rgba(255, 255, 255, ${Math.max(0.08, 0.2 - themeSettings.cardGlassOpacity * 0.1)})`
+    );
+  }, [themeSettings]);
+
+  const handleUpdateTheme = (newSettings) => {
+    setThemeSettings(newSettings);
+    try {
+      localStorage.setItem('lexiflow_theme_settings', JSON.stringify(newSettings));
+    } catch {}
+
+    if (currentUser) {
+      activeUserProgressRef.current = {
+        ...(activeUserProgressRef.current || {}),
+        themeSettings: newSettings
+      };
+      syncProgressToServer({
+        vocabProgress: activeUserProgressRef.current
+      });
+    }
+  };
+
+  const handleResetTheme = () => {
+    handleUpdateTheme(DEFAULT_THEME_SETTINGS);
+    showToast('🎨 Đã khôi phục giao diện Cực Quang mặc định');
+  };
+
   // Server Hydration Guard: Prevents auto-saves from writing empty default state to database
   const isHydratedFromServer = useRef(false);
   const activeUserProgressRef = useRef({});
@@ -566,6 +617,9 @@ export default function App() {
           const mergedVocab = mergeClientVocabProgress(backupVocab, serverVocab);
 
           activeUserProgressRef.current = mergedVocab;
+          if (mergedVocab.themeSettings && !localStorage.getItem('lexiflow_theme_settings')) {
+            setThemeSettings(mergedVocab.themeSettings);
+          }
           saveStoredVocabProgress(mergedVocab, userObj.id);
           saveLocalBackup(userObj.id, userObj.email, {
             xp: safeXP,
@@ -650,6 +704,9 @@ export default function App() {
     const mergedVocab = mergeClientVocabProgress(backupVocab, serverVocab);
 
     activeUserProgressRef.current = mergedVocab;
+    if (mergedVocab.themeSettings && !localStorage.getItem('lexiflow_theme_settings')) {
+      setThemeSettings(mergedVocab.themeSettings);
+    }
     saveStoredVocabProgress(mergedVocab, user?.id);
     saveLocalBackup(user?.id, user?.email, {
       xp: finalXP,
@@ -1084,7 +1141,19 @@ export default function App() {
   }, [vocabCourses, activePracticeDeck]);
 
   return (
-    <div className="h-screen h-[100dvh] w-screen overflow-hidden bg-[#0B0F17] text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-indigo-500 selection:text-white antialiased">
+    <div className="relative h-screen h-[100dvh] w-screen overflow-hidden bg-[#0B0F17] text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-indigo-500 selection:text-white antialiased">
+      {/* BACKGROUND STUDIO LAYER (Fixed ambient preset or custom wallpaper with bokeh blur & dimmer) */}
+      <BackgroundStudioView themeSettings={themeSettings} />
+
+      {/* THEME STUDIO MODAL */}
+      <ThemeStudioModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        themeSettings={themeSettings}
+        onUpdateTheme={handleUpdateTheme}
+        onResetTheme={handleResetTheme}
+      />
+
       {/* TOAST NOTIFICATION */}
       {toast && (
         <div className="fixed top-20 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-indigo-950/95 border border-indigo-400/50 text-xs font-bold text-white shadow-2xl backdrop-blur-md animate-bounce">
@@ -1113,7 +1182,7 @@ export default function App() {
       />
 
       {/* MAIN CONTENT VIEWPORT */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10">
         {/* TOPBAR */}
         <Topbar
           globalSearch={globalSearch}
@@ -1133,6 +1202,7 @@ export default function App() {
           onSpeak={speakText}
           isSidebarCollapsed={isSidebarCollapsed}
           setIsSidebarCollapsed={setIsSidebarCollapsed}
+          onOpenThemeStudio={() => setIsThemeModalOpen(true)}
         />
 
         {/* MAIN SCROLLABLE VIEW AREA (With bottom padding for MobileBottomNav) */}
@@ -1164,7 +1234,7 @@ export default function App() {
               }}
             />
           ) : (
-            <>
+            <div key={activeTab} className="animate-fade-in-up">
               {activeTab === 'dashboard' && (
                 <RoadmapView
                   userStats={userStats}
@@ -1227,7 +1297,7 @@ export default function App() {
                   onAwardXP={awardXP}
                 />
               )}
-            </>
+            </div>
           )}
         </main>
       </div>

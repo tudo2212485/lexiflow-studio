@@ -58,6 +58,7 @@ export function mergeVocabProgress(existingRaw = {}, incomingRaw = {}) {
       k !== 'lastActiveTopicId' &&
       k !== 'starredWords' &&
       k !== 'starredCardIds' &&
+      k !== 'themeSettings' &&
       v &&
       typeof v === 'object'
     ) {
@@ -73,6 +74,7 @@ export function mergeVocabProgress(existingRaw = {}, incomingRaw = {}) {
       k !== 'lastActiveTopicId' &&
       k !== 'starredWords' &&
       k !== 'starredCardIds' &&
+      k !== 'themeSettings' &&
       v &&
       typeof v === 'object'
     ) {
@@ -186,6 +188,7 @@ export function mergeVocabProgress(existingRaw = {}, incomingRaw = {}) {
 
   const mergedStarred = Array.from(new Set([...existingStarred, ...incomingStarred]));
   const lastActiveTopicId = incoming.lastActiveTopicId || existing.lastActiveTopicId || null;
+  const themeSettings = incoming.themeSettings || existing.themeSettings || null;
 
   return {
     ...mergedLearned,
@@ -193,7 +196,8 @@ export function mergeVocabProgress(existingRaw = {}, incomingRaw = {}) {
     topicState: mergedTopicState,
     starredWords: mergedStarred,
     starredCardIds: mergedStarred,
-    lastActiveTopicId
+    lastActiveTopicId,
+    ...(themeSettings ? { themeSettings } : {})
   };
 }
 

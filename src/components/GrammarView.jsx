@@ -547,7 +547,7 @@ export default function GrammarView({
                     </div>
                     <div className="w-full bg-[#0B0F17] rounded-full h-1.5 overflow-hidden">
                       <div
-                        className="bg-indigo-500 h-full rounded-full transition-all duration-300"
+                        className="bg-indigo-500 h-full rounded-full transition-all duration-700 ease-out"
                         style={{ width: `${percent}%` }}
                       />
                     </div>

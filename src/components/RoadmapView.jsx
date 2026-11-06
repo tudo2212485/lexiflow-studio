@@ -226,7 +226,7 @@ export default function RoadmapView({
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* 1. COMPACT WELCOME BANNER (Responsive flex-col on mobile) */}
-      <div className="p-4 sm:p-6 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+      <div className="p-4 sm:p-6 rounded-3xl bg-slate-900/70 backdrop-blur-md border border-white/10 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 card-shine">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-xl">👋</span>
@@ -278,7 +278,7 @@ export default function RoadmapView({
       </div>
 
       {/* 2. TRẠM KIỂM TRA & GIỮ TRÍ NHỚ DÀI HẠN (MEMORY RETENTION & RECALL HUB) */}
-      <div className="p-4 sm:p-6 rounded-3xl bg-[#131B2E] border border-slate-800/90 shadow-xl space-y-4 sm:space-y-5">
+      <div className="p-4 sm:p-6 rounded-3xl bg-slate-900/70 backdrop-blur-md border border-white/10 shadow-xl space-y-4 sm:space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
@@ -301,7 +301,7 @@ export default function RoadmapView({
         {/* 4 Trạng thái trí nhớ trực quan: 2 cột x 2 hàng trên mobile, 4 cột trên desktop */}
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
           {/* Due Now */}
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-rose-500/20 space-y-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-950/60 backdrop-blur-md border border-rose-500/30 card-interactive space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-rose-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
@@ -318,7 +318,7 @@ export default function RoadmapView({
           </div>
 
           {/* Weak / Forgotten */}
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-amber-500/20 space-y-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-950/60 backdrop-blur-md border border-amber-500/30 card-interactive space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-amber-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-amber-500" />
@@ -331,7 +331,7 @@ export default function RoadmapView({
           </div>
 
           {/* Learning */}
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-blue-500/20 space-y-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-950/60 backdrop-blur-md border border-blue-500/30 card-interactive space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-blue-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-blue-500" />
@@ -344,7 +344,7 @@ export default function RoadmapView({
           </div>
 
           {/* Mastered */}
-          <div className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] border border-emerald-500/20 space-y-1">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-950/60 backdrop-blur-md border border-emerald-500/30 card-interactive space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -366,7 +366,7 @@ export default function RoadmapView({
             {/* Mode 1: 60s Quick Recall */}
             <button
               onClick={() => setActiveModal('recall')}
-              className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 hover:border-amber-500/40 text-left transition group relative overflow-hidden"
+              className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/60 backdrop-blur-md border border-white/10 hover:border-amber-400/50 card-interactive card-shine text-left transition group relative overflow-hidden"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
@@ -386,7 +386,7 @@ export default function RoadmapView({
             {/* Mode 2: Dictation & Spelling */}
             <button
               onClick={() => setActiveModal('dictation')}
-              className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0F17] border border-slate-800 hover:border-blue-500/40 text-left transition group relative overflow-hidden"
+              className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/60 backdrop-blur-md border border-white/10 hover:border-blue-400/50 card-interactive card-shine text-left transition group relative overflow-hidden"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
@@ -406,7 +406,7 @@ export default function RoadmapView({
             {/* Mode 3: SRS Review */}
             <button
               onClick={() => setActiveModal('srs')}
-              className="p-3.5 sm:p-4 rounded-2xl bg-[#0B0F17] border border-purple-500/40 text-left transition group relative overflow-hidden"
+              className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/60 backdrop-blur-md border border-purple-500/30 hover:border-purple-400/60 card-interactive card-shine text-left transition group relative overflow-hidden"
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center shrink-0">
@@ -431,7 +431,7 @@ export default function RoadmapView({
         {/* CỘT CHÍNH (8 COLS TRÊN DESKTOP) */}
         <div className="lg:col-span-8 space-y-6">
           {/* 3.1 Card "Tiếp tục học / Đang học dở" (Luôn nằm trên đầu) */}
-          <div className="p-4 sm:p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 rounded-3xl bg-slate-900/70 backdrop-blur-md border border-white/10 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 card-shine">
             <div className="flex items-center gap-3.5 min-w-0">
               <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-xl shrink-0">
                 {currentActiveCourse?.icon || '📘'}
@@ -453,7 +453,7 @@ export default function RoadmapView({
                 <div className="flex items-center gap-3 mt-1.5">
                   <div className="w-28 sm:w-32 bg-slate-800 rounded-full h-1.5 overflow-hidden">
                     <div
-                      className="bg-indigo-500 h-full rounded-full transition-all duration-300"
+                      className="bg-indigo-500 h-full rounded-full transition-all duration-700 ease-out"
                       style={{ width: `${subdeckPct}%` }}
                     />
                   </div>
@@ -555,7 +555,7 @@ export default function RoadmapView({
                 <div
                   key={stage.id}
                   onClick={() => onNavigateTab(stage.targetTab, stage.deckId || stage.lessonId)}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-[#0B0F17] hover:bg-[#0E1526] border border-slate-800/80 hover:border-indigo-500/40 transition cursor-pointer flex items-center justify-between gap-3 group"
+                  className="p-3 sm:p-3.5 rounded-2xl bg-slate-950/60 backdrop-blur-md border border-white/10 hover:border-indigo-500/40 card-interactive transition cursor-pointer flex items-center justify-between gap-3 group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     {/* Circle Stage Number */}
@@ -583,7 +583,7 @@ export default function RoadmapView({
                       <div className="text-xs font-bold text-indigo-400">{stage.progress}%</div>
                       <div className="w-16 bg-slate-800 rounded-full h-1 mt-1 overflow-hidden">
                         <div
-                          className="bg-indigo-500 h-full rounded-full"
+                          className="bg-indigo-500 h-full rounded-full transition-all duration-700 ease-out"
                           style={{ width: `${stage.progress}%` }}
                         />
                       </div>
@@ -599,7 +599,7 @@ export default function RoadmapView({
         {/* CỘT PHỤ BÊN PHẢI (4 COLS TRÊN DESKTOP) */}
         <div className="lg:col-span-4 space-y-6">
           {/* Card: Tiến độ hôm nay (Hiện trên Desktop, ẩn trên Mobile vì Mobile đã render ở trên) */}
-          <div className="hidden lg:block p-5 rounded-3xl bg-[#131B2E] border border-slate-800/80 shadow-md space-y-4">
+          <div className="hidden lg:block p-5 rounded-3xl bg-slate-900/70 backdrop-blur-md border border-white/10 shadow-md space-y-4 card-shine">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <Clock className="w-4 h-4 text-emerald-400" />
