@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Sparkles, Home, Layers, BookOpen, Headphones } from 'lucide-react';
+import { Sparkles, Home, Layers, BookOpen, Headphones, Film } from 'lucide-react';
 
 // Data imports
 import INITIAL_ROADMAP_STAGES from './data/roadmap16Stages.json';
@@ -12,6 +12,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import RoadmapView from './components/RoadmapView';
 import VocabVault from './components/VocabVault';
+import VideoImmersionView from './components/VideoImmersionView';
 import GrammarView from './components/GrammarView';
 import SpeakingLab from './components/SpeakingLab';
 import SmartNotebookDrawer from './components/SmartNotebookDrawer';
@@ -1284,6 +1285,15 @@ export default function App() {
                 />
               )}
 
+              {activeTab === 'video' && (
+                <VideoImmersionView
+                  onPinNote={pinToStudyNote}
+                  onAwardXP={awardXP}
+                  onSpeak={speakText}
+                  onUpdateCardSRS={handleUpdateCardSRS}
+                />
+              )}
+
               {activeTab === 'grammar' && (
                 <GrammarView
                   courses={grammarCourses}
@@ -1360,6 +1370,7 @@ function MobileBottomNav({ activeTab, onSelectTab }) {
   const tabs = [
     { id: 'dashboard', label: 'Tổng quan', icon: Home },
     { id: 'vocab', label: 'Từ vựng', icon: Layers },
+    { id: 'video', label: 'Video', icon: Film, badge: 'HOT' },
     { id: 'grammar', label: 'Ngữ pháp', icon: BookOpen },
     { id: 'speaking', label: 'Nghe - Nói', icon: Headphones },
     { id: 'ai', label: 'AI Lab', icon: Sparkles, highlight: true }
@@ -1386,7 +1397,7 @@ function MobileBottomNav({ activeTab, onSelectTab }) {
               <span className="absolute -top-1.5 w-6 h-1 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
             )}
             <div
-              className={`p-1 rounded-lg transition ${
+              className={`p-1 rounded-lg transition relative ${
                 isActive
                   ? 'bg-indigo-500/15 text-indigo-400 scale-105'
                   : tab.highlight
@@ -1395,6 +1406,11 @@ function MobileBottomNav({ activeTab, onSelectTab }) {
               }`}
             >
               <Icon className="w-5 h-5" />
+              {tab.badge && (
+                <span className="absolute -top-1.5 -right-2 px-1 py-0.2 bg-gradient-to-r from-rose-500 to-amber-500 text-[8px] font-extrabold text-white rounded-full scale-90 leading-tight">
+                  {tab.badge}
+                </span>
+              )}
             </div>
             <span
               className={`text-[11px] leading-tight mt-0.5 truncate max-w-[64px] ${
